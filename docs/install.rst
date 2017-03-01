@@ -4,14 +4,15 @@ Installation
 
 Rough, incomplete installation instructions.
 
+Requirements
+============
 
 OS
-==
+--
 
 .. code-block:: bash
 
-    sudo apt-get install ssdeep exiftool libfuzzy-dev libffi-dev p7zip-full libncurses-dev
-
+    sudo apt-get install ssdeep exiftool libfuzzy-dev libffi-dev p7zip-full libncurses-dev python3-dev mysql-server python3-virtualenv git
 
 .. note::
 
@@ -19,13 +20,22 @@ OS
     forensics-all metapackage.
 
 virtualenv
-==========
+----------
 
-Consider using a virtualenv as a lot of libraries will be installed and/or
-updated and we don't want to mix up with the system's libraries.
+As a lot of libraries will be installed and/or updated and we don't want to mix
+up with the system's libraries. We thus use a virtualenv:
+
+.. code-block:: bash
+
+    python3-virtualenv
+    virtualenv ~/do-portal/ -p python3
+    source ~/do-portal/bin/activate
+
+Now, `which python3` and `which pip3` should show the executables inside the
+virtualenv.
 
 Python libraries
-================
+----------------
 
 First upgrade your pip and setuptools. Current versions of these are required
 by the libraries we will install.
@@ -35,18 +45,9 @@ by the libraries we will install.
     sudo pip install -U pip setuptools
     sudo pip install -r requirements.txt
 
-Logging
-=======
-
-Create the logs directory:
-
-.. code-block:: bash
-
-    mkdir logs
-
 
 RabbitMQ
-========
+--------
 
 .. code-block:: bash
 
@@ -58,14 +59,14 @@ RabbitMQ
 
 
 Celery
-======
+------
 
 .. code-block:: bash
 
     venv/bin/pip install celery
 
 Start the celery worker
------------------------
++++++++++++++++++++++++
 
 .. code-block:: bash
 
@@ -74,7 +75,7 @@ Start the celery worker
 
 
 Mailman
-=======
+-------
 
 `<https://mailman.readthedocs.org/en/latest/src/mailman/docs/WebUIin5.html>`_
 `<https://pythonhosted.org/mailman/README.html>`_
@@ -94,11 +95,9 @@ Use Django==1.8.5
     git clone https://gitlab.com/mailman/postorius.git
     ../py3/bin/python setup.py develop
     git clone https://gitlab.com/mailman/postorius_standalone.git
-    ../py2/bin/python manage.py migrate
-    ../py2/bin/python manage.py runserver 0.0.0.0:8000
 
 GPG setup
-=========
+---------
 
 Required for searching keys:
 
@@ -114,7 +113,7 @@ Get CA certificate:
     dpkg-reconfigure ca-certificates
 
 OpenSSL
-=======
+-------
 
 When connecting to SSL enabled APIs that use the CERT-EU wildcard
 certificate you need to install the CA on the client side.
@@ -125,6 +124,7 @@ in the correct order. E.i. concatenate the certificates in one bundle.
 
     cat DigiCert\ SHA2\ Secure\ Server\ CA.cer DigiCert\ Global\ Root\ CA.cer >> digi_chain.crt
 
+Test it:
 
 .. code-block:: python
 
@@ -136,12 +136,12 @@ in the correct order. E.i. concatenate the certificates in one bundle.
     r = requests.post(url, auth=(user, passwd), verify=chain)
 
 
-    Alternatively, setting the REQUESTS_CA_BUNDLE or CURL_CA_BUNDLE
-    environment varible will have the save effect.
+Alternatively, setting the REQUESTS_CA_BUNDLE or CURL_CA_BUNDLE
+environment varible will have the save effect.
 
 
 Avira
-=====
+-----
 
 .. code-block:: bash
 
@@ -155,7 +155,7 @@ Avira
 
 
 F-Secure
-========
+--------
 
 .. code-block:: bash
 
@@ -166,7 +166,7 @@ F-Secure
 
 
 Disable real-time virus protection and integrity check
-------------------------------------------------------
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 .. code-block:: bash
 
@@ -174,15 +174,53 @@ Disable real-time virus protection and integrity check
     /opt/f-secure/fsma/bin/chtest s 45.1.70.10 0
 
 Comodo
-======
+------
 
 Install http://ftp.de.debian.org/debian/pool/main/o/openssl/libssl0.9.8_0.9.8o-4squeeze14_i386.deb
 
 Tests
-=====
+-----
 
 Make sure you have a working configuration first.
 
 .. code-block:: bash
 
     py.test --flake8 --cov=app --cov-report=html --cov-report=term -r we tests
+
+
+Setup
+=====
+
+Create a config.cfg like this one: https://github.com/certeu/do-portal-vagrant/tree/8dc4cab8ad4ddb8792d040b295189bca1765fffc/files/configs/doportal
+and adapt paths, mysql configs etc
+
+Set some environment variables (and make them permanent):
+
+.. code-block:: bash
+
+    export LANGUAGE=en_US.UTF-8
+    export LANG=en_US.UTF-8
+    export LC_ALL=en_US.UTF-8
+    export DO_LOCAL_CONFIG=/path/to/config.cfg
+
+Create the logs directory:
+
+.. code-block:: bash
+
+    mkdir logs
+
+Create the database and run the integrated webserver:
+
+.. code-block:: bash
+
+    python manage.py db init
+    python manage.py db migrate
+    python manage.py db upgrade
+    python manage.py addsampledata
+    python manage.py run -h 0.0.0.0 -p 8000
+
+You can now access the interface at `http://doportal` with user
+`testadmin@domain.tld` and password `changeme`. You need to acces the portal
+with only the hostname `doportal` and port 80, others do not work!
+
+Now you can setup a webserver to serve the application.
