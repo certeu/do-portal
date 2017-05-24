@@ -98,6 +98,32 @@ class ESET(Antivirus):
         return self._results
 
 
+class WindowsDefender(Antivirus):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+        self.result_regex = 'Threat (.*) identified\.'
+
+    def exec(self, cmd):
+        out = None
+        with popen(*cmd) as scan_proc:
+            stdout, stderr = scan_proc.communicate()
+            out = stderr.decode('utf-8').strip()
+            if scan_proc.returncode != 0:
+                logging.error(stderr)
+        return out
+
+    def scan(self, path):
+        os.chdir(os.path.dirname(self.path))
+        cmd = self.build(path)
+        result = self.exec(cmd)
+        matches = re.findall(self.result_regex, result,
+                             re.IGNORECASE | re.MULTILINE)
+        for m in matches:
+            self._results[path] = m
+        return self._results
+
+
 class FProt(Antivirus):
 
     def __init__(self, *args, **kwargs):
