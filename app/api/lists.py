@@ -626,7 +626,7 @@ def subscribe_list(list_id):
             fetch_gpg_key(
                 email.lower(), current_app.config['GPG_KEYSERVERS'][0])
         except HTTPError as he:
-            raise ApiException(email.lower() + ': ' + he.msg.decode(), he.code)
+            raise ApiException(he.msg.decode(), he.code) from he
     return ApiResponse({'message': 'List saved'})
 
 
