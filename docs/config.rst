@@ -7,3 +7,5 @@ variable.
 .. automodule:: config
     :members:
     :show-inheritance:
+
+The configuration resides in `config.py` in the class `Config` as members.
