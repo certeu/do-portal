@@ -1,16 +1,14 @@
 from flask import request, redirect, url_for, g
 from flask_jsonschema import validate
-from . import api
-from .decorators import json_response, paginate
-from ..import db
+from app.core import ApiResponse
+from app import db
 from app.models import Tag
+from . import api
 
 
 @api.route('/tags', methods=['GET'])
-@json_response
-@paginate
 def get_tags():
-    """Return a paginated list of available tags
+    """Return available tags
 
     For tag details see :http:get:`/api/1.0/tags/(int:tag_id)`
 
@@ -46,13 +44,16 @@ def get_tags():
     :>jsonarr string name: Tag name
 
     :status 200: Tag list
+    :status 204: No tags available
     :status 404: Not found
     """
-    return Tag.query.distinct(Tag.name)
+    tags = Tag.query.distinct(Tag.name).all()
+    if not tags:
+        return ApiResponse({}, 204)
+    return ApiResponse({'tags': tags})
 
 
 @api.route('/tags/<int:tag_id>', methods=['GET'])
-@json_response
 def get_tag(tag_id):
     """Return tag identified by `tag_id`
 
@@ -87,12 +88,12 @@ def get_tag(tag_id):
     :status 200: Returns tag details object
     :status 404: Resource not found
     """
-    return Tag.query.get_or_404(tag_id)
+    tag = Tag.query.get_or_404(tag_id)
+    return ApiResponse(tag)
 
 
 @api.route('/tags', methods=['POST', 'PUT'])
 @validate('tags', 'add_tag')
-@json_response
 def add_tag():
     """Add new tag
 
@@ -153,13 +154,14 @@ def add_tag():
     t.user_id = g.user.id
     db.session.add(t)
     db.session.commit()
-    return {'tag': t.serialize(), 'message': 'Tag added'},\
-        201, {'Location': url_for('api.get_tag', tag_id=t.id)}
+    return ApiResponse(
+        {'tag': t.serialize(), 'message': 'Tag added'},
+        201,
+        {'Location': url_for('api.get_tag', tag_id=t.id)})
 
 
 @api.route('/tags/<int:tag_id>', methods=['PUT'])
 @validate('tags', 'update_tag')
-@json_response
 def update_tag(tag_id):
     """Update tag details
 
@@ -217,11 +219,10 @@ def update_tag(tag_id):
     t.from_json(request.json)
     db.session.add(t)
     db.session.commit()
-    return {'message': 'Tag saved'}
+    return ApiResponse({'message': 'Tag saved'})
 
 
 @api.route('/tags/<int:tag_id>', methods=['DELETE'])
-@json_response
 def delete_tag(tag_id):
     """Delete tag
 
@@ -260,4 +261,4 @@ def delete_tag(tag_id):
     t.deleted = 1
     db.session.add(t)
     db.session.commit()
-    return {'message': 'Tag deleted'}
+    return ApiResponse({'message': 'Tag deleted'})

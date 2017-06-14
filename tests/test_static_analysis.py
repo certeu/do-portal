@@ -1,42 +1,24 @@
-import json
 from flask import url_for
-from app.models import User
-from tests import DOTestCase
+from .conftest import assert_msg
 
 
-class StaticAnalysisTestCase(DOTestCase):
+def test_start_static_analysis(client):
+    rv = client.post(
+        url_for('api.add_analysis'),
+        json=dict(files=[{'sha256': '1eedab2b09a4bf6c'}])
+    )
+    assert_msg(rv,
+               value='Your files have been submitted for static analysis',
+               response_code=202)
 
-    current_user = None
 
-    def setUp(self):
-        super().setUp()
-        self.current_user = User.create_test_user()
-        self.login(self.current_user.email)
+def test_get_static_analysis(client):
+    rv = client.get(
+        url_for('api.get_analysis', sha256='1eedab2b09a4bf6c87b273305c09')
+    )
+    assert rv.status_code == 404
 
-    def tearDown(self):
-        self.current_user = None
-        super().tearDown()
 
-    def test_start_static_analysis(self):
-        rv = self.client.post(
-            url_for('api.add_analysis'),
-            data=json.dumps(dict(files=[{'sha256': '1eedab2b09a4bf6c'}])),
-            headers=self.get_req_headers()
-        )
-        self.assertJSONMsg(
-            rv, key='message', rv_status=202,
-            value='Your files have been submitted for static analysis')
-
-    def test_get_static_analysis(self):
-        rv = self.client.get(
-            url_for('api.get_analysis', sha256='1eedab2b09a4bf6c87b273305c09'),
-            headers=self.get_req_headers()
-        )
-        self.assertTrue(rv.status_code == 404)
-
-    def test_get_static_analyses(self):
-        rv = self.client.get(
-            url_for('api.get_analyses'),
-            headers=self.get_req_headers()
-        )
-        self.assertJSONIsNotNone(rv, 'items')
+def test_get_static_analyses(client):
+    rv = client.get(url_for('api.get_analyses'))
+    assert_msg(rv, key='items')

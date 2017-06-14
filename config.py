@@ -223,6 +223,8 @@ class Config:
     #: Password user for archiving infected files
     INFECTED_PASSWD = 'infected'
 
+    PROXIES = {}
+
 
 class DevelConfig(Config):
     DEBUG = True

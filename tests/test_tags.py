@@ -1,55 +1,33 @@
-import json
+import pytest
 from flask import url_for
-from app.models import User
-from tests import DOTestCase
+from .conftest import assert_msg
 
 
-class TagsTestCase(DOTestCase):
+def test_create_tag(client):
+    rv = client.post(
+        url_for('api.add_tag'),
+        json=dict(name='Boobo')
+    )
+    assert_msg(rv, value='Tag added', response_code=201)
 
-    current_user = None
 
-    def setUp(self):
-        super().setUp()
-        self.current_user = User.create_test_user()
-        self.login(self.current_user.email)
+def test_update_tag(client):
+    rv = client.put(
+        url_for('api.update_tag', tag_id=1),
+        json=dict(name='Yoggy')
+    )
+    assert rv.status_code == 200
 
-    def tearDown(self):
-        self.current_user = None
-        super().tearDown()
 
-    def test_tags(self):
-        rv = self.client.post(
-            url_for('api.add_tag'),
-            data=json.dumps(dict(
-                name='Boobo',
-            )),
-            headers=self.get_req_headers()
-        )
-        self.assertJSONIsNotNone(rv, 'tag', 201)
+def test_read_tag(client):
+    rv = client.get(url_for('api.get_tags'))
+    assert_msg(rv, key='tags')
 
-        rv = self.client.put(
-            url_for('api.update_tag', tag_id=1),
-            data=json.dumps(dict(
-                name='Yoggy',
-            )),
-            headers=self.get_req_headers()
-        )
-        self.assertJSONMsg(rv, value='Tag saved')
+    rv = client.get(url_for('api.get_tag', tag_id=1))
+    assert_msg(rv, key='name')
 
-        rv = self.client.get(
-            url_for('api.get_tags'),
-            headers=self.get_req_headers()
-        )
-        self.assertTrue(rv.status_code == 200)
 
-        rv = self.client.get(
-            url_for('api.get_tag', tag_id=1),
-            headers=self.get_req_headers()
-        )
-        self.assertTrue(rv.status_code == 200)
-
-        rv = self.client.delete(
-            url_for('api.delete_tag', tag_id=1),
-            headers=self.get_req_headers()
-        )
-        self.assertJSONMsg(rv, value='Tag deleted')
+@pytest.mark.parametrize('tag_id, status_code', [(1, 200), (666, 404)])
+def test_delete_tag(client, tag_id, status_code):
+    rv = client.delete(url_for('api.delete_tag', tag_id=tag_id))
+    assert rv.status_code == status_code

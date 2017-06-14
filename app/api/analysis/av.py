@@ -5,16 +5,14 @@
 """
 import json
 from flask import request, current_app, g
+from app.core import ApiResponse, ApiPagedResponse
 from app.api import api
 from app.models import Report, Sample
-from app.api.decorators import json_response, paginate
 from app.tasks import analysis
 from app.utils.avscanlib import Scanner
 
 
 @api.route('/analysis/av', methods=['GET'])
-@json_response
-@paginate
 def get_av_scans():
     """Return a paginated list of available AV scan reports
 
@@ -32,11 +30,8 @@ def get_av_scans():
 
         HTTP/1.0 200 OK
         Content-Type: application/json
-        DO-Page-Next: http://do.cert.europa.eu/api/1.0/av?page=2
-        DO-Page-Prev: None
-        DO-Page-Current: 1
-        DO-Page-Item-Count: 58
-
+        Link: <.../api/1.0/analysis/av?page=1&per_page=20>; rel="First",
+              <.../api/1.0/analysis/av?page=0&per_page=20>; rel="Last"
         {
           "count": 58,
           "items": [
@@ -46,35 +41,27 @@ def get_av_scans():
               "sha256": "403e0ef2ee6cb281ed294f84a8e417141caf4abdd46ceeedf3..."
             }
           ],
-          "next": "http://do.cert.europa.eu/api/1.0/av?page=2",
           "page": 1,
-          "prev": null
         }
 
     :reqheader Accept: Content type(s) accepted by the client
     :resheader Content-Type: this depends on `Accept` header or request
-    :resheader DO-Page-Next: Next page URL
-    :resheader DO-Page-Prev: Previous page URL
-    :resheader DO-Page-Curent: Current page number
-    :resheader DO-Page-Item-Count: Total number of items
+    :resheader Link: Describe relationship with other resources
 
     :>json array items: AV reports
     :>jsonarr integer id: AV scan unique ID
     :>jsonarr string name: File name
     :>jsonarr string sha256: SHA256 message-digest of file
     :>json integer page: Current page number
-    :>json integer prev: Previous page number
-    :>json integer next: Next page number
     :>json integer count: Total number of items
 
     :status 200: Reports found
     :status 404: Resource not found
     """
-    return Report.query.filter_by(type_id=2)
+    return ApiPagedResponse(Report.query.filter_by(type_id=2))
 
 
 @api.route('/analysis/av/<string:sha256>', methods=['GET'])
-@json_response
 def get_av_scan(sha256):
     """Return last antivirus scan report for sample identified by
         :attr:`~app.models.Sample.sha256`.
@@ -119,18 +106,21 @@ def get_av_scan(sha256):
     :>json string report_parsed: Parsed antivirus scan report
 
     :status 200: Scan report found
+    :status 204: Scan report empty. The client MAY repeat the request at a
+                 later time.
     :status 404: Resource not found
     """
     s = Sample.query.filter_by(sha256=sha256).first_or_404()
-    report = Report.query.filter_by(type_id=2, sample_id=s.id).first_or_404()
+    report = Report.query.filter_by(type_id=2, sample_id=s.id).first()
+    if not report:
+        return ApiResponse({}, 204)
     serialized = report.serialize()
     if 'report' in serialized:
         serialized['report_parsed'] = json.loads(serialized['report'])
-    return serialized
+    return ApiResponse(serialized)
 
 
 @api.route('/analysis/av', methods=['POST', 'PUT'])
-@json_response
 def add_av_scan():
     """Submit files for antivirus scanning.
     Also accepts :http:method:`put`.
@@ -209,14 +199,13 @@ def add_av_scan():
                 analysis.multiavscan.delay(child.sha256)
         except AttributeError as ae:
             current_app.log.info(ae)
-    return {
+    return ApiResponse({
         'files': request.json['files'],
         'message': 'Your files have been submitted for AV scanning'
-    }, 202
+    }, 202)
 
 
 @api.route('/analysis/av/engines')
-@json_response
 def get_av_engines():
     """Return the list of active AV engines
 
@@ -255,4 +244,4 @@ def get_av_engines():
     :status 400: Bad request
     """
     av = Scanner(current_app.config['AVSCAN_CONFIG'])
-    return {'engines': av.engines}
+    return ApiResponse({'engines': av.engines})

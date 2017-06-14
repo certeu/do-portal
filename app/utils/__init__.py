@@ -1,11 +1,13 @@
-import json
+from json import JSONEncoder as BaseJSONEncoder
 import decimal
 import re
 import binascii
 import os
 import hashlib
+from datetime import datetime, date
 from collections import namedtuple
 import ssdeep
+from app.utils.mixins import SerializerMixin
 
 _HTTP_METHOD_TO_AUDIT_MAP = {
     'post': 'add',
@@ -16,11 +18,15 @@ _HTTP_METHOD_TO_AUDIT_MAP = {
 }
 
 
-class DecimalJSONEncoder(json.JSONEncoder):
+class JSONEncoder(BaseJSONEncoder):
     def default(self, o):
         if isinstance(o, decimal.Decimal):
             return str(o)
-        return super(DecimalJSONEncoder, self).default(o)
+        elif isinstance(o, datetime) or isinstance(o, date):
+            return str(o)
+        elif isinstance(o, SerializerMixin):
+            return o.serialize()
+        return super(JSONEncoder, self).default(o)
 
 
 def is_valid_email(email):

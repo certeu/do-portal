@@ -5,14 +5,13 @@
 """
 import json
 from flask import request, g, current_app
+from app.core import ApiResponse
 from app.tasks import analysis
 from app.cp import cp
 from app.models import Sample, Report
-from app.api.decorators import json_response
 
 
 @cp.route('/analysis/static/<string:sha256>', methods=['GET'])
-@json_response
 def get_cp_analysis(sha256):
     """Return last static analysis report for sample identified by it SHA256.
 
@@ -106,11 +105,10 @@ def get_cp_analysis(sha256):
     serialized = report.serialize()
     if 'report' in serialized:
         serialized['report_parsed'] = json.loads(serialized['report'])
-    return serialized
+    return ApiResponse(serialized)
 
 
 @cp.route('/analysis/static', methods=['POST', 'PUT'])
-@json_response
 def add_cp_analysis():
     """Submit files for static analysis
 
@@ -184,7 +182,7 @@ def add_cp_analysis():
                                                 countdown=1)
             except AttributeError as ae:
                 current_app.log.error(ae)
-    return {
+    return ApiResponse({
         'files': request.json['files'],
         'message': 'Your files have been submitted for static analysis'
-    }, 202
+    }, 202)

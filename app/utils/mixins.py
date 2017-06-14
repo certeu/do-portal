@@ -1,3 +1,4 @@
+from flask import current_app
 from flask_login import AnonymousUserMixin
 from datetime import datetime, date
 from decimal import Decimal
@@ -24,7 +25,7 @@ class SerializerMixin(object):
         for k, field in keys:
             if public and k not in public:
                 continue
-            if k in exclude:
+            if exclude and k in exclude:
                 continue
             value = self._serialize(field.value)
             if value:
@@ -35,7 +36,7 @@ class SerializerMixin(object):
             try:
                 data[e] = self._serialize(getattr(self, e))
             except AttributeError as ae:  # noqa
-                pass
+                current_app.log.error(ae)
 
         return data
 

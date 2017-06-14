@@ -10,17 +10,19 @@ from io import BytesIO
 from lxml import etree
 from flask import request, current_app, g, send_file, session
 from flask_jsonschema import validate
+from app.core import ApiResponse, ApiException
 from app import fireeye, db
 from app.api import api
-from app.models import Report, Sample
-from app.api.decorators import json_response, paginate
+from app.models import Sample
 
 
 @api.route('/analysis/fireeye', methods=['GET'])
-@json_response
-@paginate
 def get_fireeye_analyses():
     """Return a paginated list of FireEye Sandbox JSON reports.
+
+    .. warning::
+
+        Not Implemented
 
     **Example request**:
 
@@ -87,15 +89,15 @@ def get_fireeye_analyses():
     :status 200: Reports found
     :status 404: Resource not found
     """
-    return {}, 501
-    return Report.query.filter_by(type_id=5)
+    raise ApiException({}, 501)
+    # return Report.query.filter_by(type_id=5)
 
 
 @api.route('/analysis/fireeye/report', defaults={'type': 'html'})
 @api.route('/analysis/fireeye/report/<string:sha256>/<envid>/<type>',
            methods=['GET'])
 def get_fireeye_report(sha256, envid, type):
-    return {}, 501
+    raise ApiException({}, 501)
     # XML, HTML, BIN and PCAP are GZipped
     Sample.query.filter_by(sha256=sha256).first_or_404()
     headers = {
@@ -113,7 +115,7 @@ def get_fireeye_report(sha256, envid, type):
 @api.route('/analysis/fireeye/download/<string:sha256>/<eid>/<ftype>',
            methods=['GET'])
 def get_fireeye_download(sha256, eid, ftype):
-    return {}, 501
+    raise ApiException({}, 501)
     Sample.query.filter_by(sha256=sha256).first_or_404()
     headers = {
         'Accept': 'text/html',
@@ -129,7 +131,6 @@ def get_fireeye_download(sha256, eid, ftype):
 
 
 @api.route('/analysis/fireeye/<string:sha256>/<envid>', methods=['GET'])
-@json_response
 def get_fireeye_analysis(sha256, envid):
     """Return FireEye Sandbox dynamic analysis for sample identified by
         :attr:`~app.models.Sample.sha256`, running in :param: envid.
@@ -228,7 +229,7 @@ def get_fireeye_analysis(sha256, envid):
       determine if action was successful.
     :status 404: Resource not found
     """
-    return {}, 501
+    raise ApiException({}, 501)
     sample = Sample.query.filter_by(sha256=sha256).first_or_404()
     state = fireeye.api.get(
         'state/{}'.format(sha256),
@@ -249,14 +250,13 @@ def get_fireeye_analysis(sha256, envid):
             }
         else:
             vx = fireeye.api.get('summary/{}'.format(sha256), params=params)
-        return vx
+        return ApiResponse(vx)
     else:
         state['response']['environmentId'] = envid
-        return state
+        return ApiResponse(state)
 
 
 @api.route('/analysis/fireeye', methods=['POST', 'PUT'])
-@json_response
 def add_fireeye_analysis():
     """Submit sample to the FireEye Sandbox. Also accepts :http:method:`put`.
 
@@ -333,17 +333,20 @@ def add_fireeye_analysis():
                                       fe_token,
                                       with_children=True)
             statuses.append(resp[0]['ID'])
-    return {
+    return ApiResponse({
         'statuses': statuses,
         'message': 'Your files have been submitted for dynamic analysis'
-    }, 202
+    }, 202)
 
 
 @api.route('/analysis/fireeye-url', methods=['POST', 'PUT'])
 @validate('analysis', 'add_fireeye_url_analysis')
-@json_response
 def add_fireeye_url_analysis():
     """Submit URLs to the FireEye Sandbox. Also accepts :http:method:`put`.
+
+    .. warning::
+
+        Not Implemented
 
     **Example request**:
 
@@ -393,7 +396,7 @@ def add_fireeye_url_analysis():
     :status 202: The URLs have been accepted for scanning
     :status 400: Bad request
     """
-    return {}, 501
+    raise ApiException({}, 501)
     statuses = []
     samples = {}
     for env in request.json['dyn_analysis']['fireeye']:
@@ -425,7 +428,6 @@ def add_fireeye_url_analysis():
 
 
 @api.route('/analysis/fireeye/environments')
-@json_response
 def get_fireeye_environments():
     """Returns a list of available FireEye Sandbox environments
 
@@ -483,7 +485,7 @@ def get_fireeye_environments():
     for profile in e.xpath('//sensors/sensor/profiles/profile'):
         envs.append({'id': profile.get('id'), 'name': profile.get('name')})
 
-    return {'environments': sorted(envs, key=lambda i: i['id'])}
+    return ApiResponse({'environments': sorted(envs, key=lambda i: i['id'])})
 
 
 def _submit_to_fireeye(sha256, env, token, with_children=False):

@@ -123,6 +123,13 @@ class SAVAPI(Antivirus):
         self.result_val = 2
 
 
+class DrWeb(Antivirus):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+        self.result_regex = "\>{0,1}(.*) infected with (.*)"
+
+
 class Scanner:
     """Helper class to start available AVs
     """

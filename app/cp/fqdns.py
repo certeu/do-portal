@@ -1,13 +1,12 @@
 from flask import g, request, redirect, url_for
 from flask_jsonschema import validate
-from .. import db
-from ..models import Fqdn
-from app.api.decorators import json_response
+from app.core import ApiResponse
+from app import db
+from app.models import Fqdn
 from . import cp
 
 
 @cp.route('/fqdns', methods=['GET'])
-@json_response
 def get_fqdns():
     """Return a list of available `fully qualified domain names
     <https://en.wikipedia.org/wiki/Fully_qualified_domain_name>`_
@@ -59,11 +58,10 @@ def get_fqdns():
     fqdns = Fqdn.query.\
         filter(Fqdn.organization_id == g.user.organization_id).\
         all()
-    return {'fqdns': [f.serialize() for f in fqdns]}
+    return ApiResponse({'fqdns': [f.serialize() for f in fqdns]})
 
 
 @cp.route('/fqdns/<int:fqdn_id>', methods=['GET'])
-@json_response
 def get_fqdn(fqdn_id):
     """Get `fully qualified domain name
     <https://en.wikipedia.org/wiki/Fully_qualified_domain_name>`_
@@ -113,11 +111,10 @@ def get_fqdn(fqdn_id):
     f = Fqdn.query.\
         filter_by(id=fqdn_id, organization_id=g.user.organization_id).\
         first_or_404()
-    return f.serialize()
+    return ApiResponse(f.serialize())
 
 
 @cp.route('/fqdns/<string:fqdn>', methods=['GET'])
-@json_response
 def get_fqdn_by_name(fqdn):
     """Get `fully qualified domain name
     <https://en.wikipedia.org/wiki/Fully_qualified_domain_name>`_
@@ -167,12 +164,11 @@ def get_fqdn_by_name(fqdn):
     f = Fqdn.query.\
         filter_by(fqdn=fqdn, organization_id=g.user.organization_id).\
         first_or_404()
-    return f.serialize()
+    return ApiResponse(f.serialize())
 
 
 @cp.route('/fqdns', methods=['POST', 'PUT'])
 @validate('fqdns', 'add_fqdn')
-@json_response
 def add_fqdn():
     """Add fully qualified domain name
 
@@ -220,13 +216,14 @@ def add_fqdn():
     f.organization_id = g.user.organization_id or 0
     db.session.add(f)
     db.session.commit()
-    return {'fqdn': f.serialize(), 'message': 'Fqdn added'}, 201, \
-           {'Location': url_for('api.get_fqdn_by_name', fqdn=f.fqdn)}
+    return ApiResponse(
+        {'fqdn': f.serialize(), 'message': 'Fqdn added'},
+        201,
+        {'Location': url_for('api.get_fqdn_by_name', fqdn=f.fqdn)})
 
 
 @cp.route('/fqdns/<int:fqdn_id>', methods=['PUT'])
 @validate('fqdns', 'update_fqdn')
-@json_response
 def update_fqdn(fqdn_id):
     """Update `fully qualified domain names
     <https://en.wikipedia.org/wiki/Fully_qualified_domain_name>`_
@@ -280,11 +277,10 @@ def update_fqdn(fqdn_id):
     f.from_json(request.json)
     db.session.add(f)
     db.session.commit()
-    return {'message': 'Fqdn saved'}
+    return ApiResponse({'message': 'Fqdn saved'})
 
 
 @cp.route('/fqdns/<int:fqdn_id>', methods=['DELETE'])
-@json_response
 def delete_fqdn(fqdn_id):
     """Delete `fully qualified domain names
     <https://en.wikipedia.org/wiki/Fully_qualified_domain_name>`_
@@ -325,4 +321,4 @@ def delete_fqdn(fqdn_id):
     f.deleted = 1
     db.session.add(f)
     db.session.commit()
-    return {'message': 'Fqdn deleted'}
+    return ApiResponse({'message': 'Fqdn deleted'})

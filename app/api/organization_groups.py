@@ -1,14 +1,13 @@
 from flask import request, redirect, url_for
 from flask_jsonschema import validate
+from app.core import ApiResponse
+from app import db
+from app.models import OrganizationGroup
 from . import api
-from .decorators import json_response
-from ..import db
-from ..models import OrganizationGroup
 
 
 @api.route('/organization_groups', methods=['GET'])
 @api.route('/organization-groups', methods=['GET'])
-@json_response
 def get_groups():
     """Return a list of available groups
     Each organization belongs to one group; E.g. Constituents, National CERTs,
@@ -59,12 +58,12 @@ def get_groups():
     """
     groups = OrganizationGroup.query.filter(
         OrganizationGroup.deleted == 0).all()
-    return {'organization_groups': [o.serialize() for o in groups]}
+    return ApiResponse(
+        {'organization_groups': [o.serialize() for o in groups]})
 
 
 @api.route('/organization_groups/<int:group_id>', methods=['GET'])
 @api.route('/organization-groups/<int:group_id>', methods=['GET'])
-@json_response
 def get_group(group_id):
     """Return group identified by `group_id`
 
@@ -100,13 +99,12 @@ def get_group(group_id):
     :status 404: Resource not found
     """
     g = OrganizationGroup.query.get_or_404(group_id)
-    return g.serialize()
+    return ApiResponse(g.serialize())
 
 
 @api.route('/organization_groups', methods=['POST', 'PUT'])
 @api.route('/organization-groups', methods=['POST', 'PUT'])
 @validate('organization_groups', 'add_group')
-@json_response
 def add_group():
     """Add new group
 
@@ -165,14 +163,15 @@ def add_group():
     g = OrganizationGroup().from_json(request.json)
     db.session.add(g)
     db.session.commit()
-    return {'organization_group': g.serialize(), 'message': 'Group added'},\
-        201, {'Location': url_for('api.get_group', group_id=g.id)}
+    return ApiResponse(
+        {'organization_group': g.serialize(), 'message': 'Group added'},
+        201,
+        {'Location': url_for('api.get_group', group_id=g.id)})
 
 
 @api.route('/organization_groups/<int:group_id>', methods=['PUT'])
 @api.route('/organization-groups/<int:group_id>', methods=['PUT'])
 @validate('organization_groups', 'update_group')
-@json_response
 def update_group(group_id):
     """Update group details
 
@@ -234,12 +233,11 @@ def update_group(group_id):
     g.from_json(request.json)
     db.session.add(g)
     db.session.commit()
-    return {'message': 'Group saved'}
+    return ApiResponse({'message': 'Group saved'})
 
 
 @api.route('/organization_groups/<int:group_id>', methods=['DELETE'])
 @api.route('/organization-groups/<int:group_id>', methods=['DELETE'])
-@json_response
 def delete_group(group_id):
     """Delete group
 
@@ -276,11 +274,9 @@ def delete_group(group_id):
     g = OrganizationGroup.query.filter(
         OrganizationGroup.id == group_id,
         OrganizationGroup.deleted == 0
-    ).first()
-    if not g:
-        return {'message': 'No such group'}, 404
+    ).first_or_404()
 
     g.deleted = 1
     db.session.add(g)
     db.session.commit()
-    return {'message': 'Group deleted'}
+    return ApiResponse({'message': 'Group deleted'})

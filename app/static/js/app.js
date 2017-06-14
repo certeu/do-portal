@@ -357,4 +357,4 @@ angular.module('Portal', ['Portal.services', 'Portal.controllers', 'Portal.filte
         $rootScope.alerts.splice(index, 1);
       };
     }])
-    .value('version', '1.7.1');
+    .value('version', '1.8.0');

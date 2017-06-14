@@ -2,5 +2,5 @@
 # E402 module level import not at top of file
 # E501 line too long
 ignore = E402
-exclude = venv/*, docs/*, docs-cp/*, tests/*, .tox
+exclude = venv/*, docs/*, docs-cp/*, .tox
 max-complexity = 15

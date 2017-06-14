@@ -2,14 +2,13 @@ import ipaddress
 from flask import request, redirect, url_for, current_app
 from flask_jsonschema import validate
 from sqlalchemy.exc import IntegrityError
+from app.core import ApiResponse, ApiException
 from . import api
 from ..import db
 from ..models import Organization, Email, ContactEmail
-from .decorators import json_response
 
 
 @api.route('/organizations', methods=['GET'])
-@json_response
 def get_organizations():
     """Return a list of available organizations
 
@@ -87,11 +86,10 @@ def get_organizations():
         SHOULD NOT be repeated.
     """
     orgs = Organization.query.all()
-    return {'organizations': [o.serialize() for o in orgs]}
+    return ApiResponse({'organizations': [o.serialize() for o in orgs]})
 
 
 @api.route('/organizations/<int:org_id>', methods=['GET'])
-@json_response
 def get_organization(org_id):
     """Return organization identified by ``org_id``
 
@@ -179,11 +177,10 @@ def get_organization(org_id):
         SHOULD NOT be repeated.
     """
     o = Organization.query.get_or_404(org_id)
-    return o.serialize()
+    return ApiResponse(o.serialize())
 
 
 @api.route('/organizations/<string:org_abbr>', methods=['GET'])
-@json_response
 def get_organization_by_abbr(org_abbr):
     """Return organization identified by
     :attr:`~app.models.Organization.abbreviation`.
@@ -272,12 +269,11 @@ def get_organization_by_abbr(org_abbr):
         SHOULD NOT be repeated.
     """
     o = Organization.query.filter_by(abbreviation=org_abbr).first_or_404()
-    return o.serialize()
+    return ApiResponse(o.serialize())
 
 
 @api.route('/organizations', methods=['POST', 'PUT'])
 @validate('organizations', 'add_organization')
-@json_response
 def add_organization():
     """Add new organization
     When adding a new organization only the full name and abbreviation are
@@ -392,14 +388,14 @@ def add_organization():
 
     db.session.add(o)
     db.session.commit()
-    return {'organization': o.serialize(),
-            'message': 'Organization added'}, 201, \
-           {'Location': url_for('api.get_organization', org_id=o.id)}
+    return ApiResponse(
+        {'organization': o.serialize(), 'message': 'Organization added'},
+        201,
+        {'Location': url_for('api.get_organization', org_id=o.id)})
 
 
 @api.route('/organizations/<int:org_id>', methods=['PUT'])
 @validate('organizations', 'update_organization')
-@json_response
 def update_organization(org_id):
     """Update organization details
 
@@ -546,11 +542,10 @@ def update_organization(org_id):
 
     db.session.add(o)
     db.session.commit()
-    return {'message': 'Organization saved'}
+    return ApiResponse({'message': 'Organization saved'})
 
 
 @api.route('/organizations/<int:org_id>', methods=['DELETE'])
-@json_response
 def delete_organization(org_id):
     """Delete organization
 
@@ -598,24 +593,23 @@ def delete_organization(org_id):
     o.deleted = 1
     db.session.add(o)
     db.session.commit()
-    return {'message': 'Organization deleted'}
+    return ApiResponse({'message': 'Organization deleted'})
 
 
 @api.route('/organizations/query/', methods=['POST'])
-@json_response
 def query():
     """
 
     :status 501: NotImplemented
     :return:
     """
-    return {}, 501
+    raise ApiException('Not Implemented', status=501)
     # conditions = request.json['conditions']
     # c = Organization.query.find(**conditions)
 
 
 @api.route('/organizations/check', methods=['PUT'])
-@json_response
+@validate('organizations', 'check')
 def check_constituents():
     """Search to which organization does a specific IP address belongs
 
@@ -667,6 +661,8 @@ def check_constituents():
     """
     rv = {}
     orgs = Organization.query.all()
+    if not orgs:
+        return ApiResponse({}, 204)
     for o in orgs:
         for cidr in o.ip_ranges:
             cidr_range = ipaddress.ip_network(cidr, strict=False)
@@ -674,5 +670,7 @@ def check_constituents():
                 ipa = ipaddress.ip_address(ip.strip())
                 if ipa in cidr_range:
                     rv[ip] = o.abbreviation
-
-    return {'response': rv}
+    if rv:
+        return ApiResponse({'response': rv})
+    else:
+        return ApiResponse({}, 204)

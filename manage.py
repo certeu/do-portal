@@ -198,39 +198,52 @@ def import_hof(filename):
     with open(filename) as f:
         hof = json.loads(f.read())
         for entry in hof:
-            if entry['published'] == 'yes':
-                published = True
+            vuln_exist = Vulnerability.query.\
+                filter_by(url=entry['url']).\
+                count()
+            if vuln_exist != 0:
+                print('Entry already exist')
             else:
-                published = False
-            if entry['scanable'] == 'yes':
-                scanable = True
-            else:
-                scanable = False
-            user_id = dos.get(entry['DO'], 1)
-            org_id = constituents.get(entry['constituent'], 146)
-            list_types = []
-            vtype = entry['type']
-            if Tag.query.filter_by(name=vtype).first():
-                list_types.append(Tag.query.filter_by(name=vtype).first())
-            else:
-                list_types.append(Tag(name=vtype))
-
-            vuln = Vulnerability(
-                user_id=user_id, check_string=entry['check_string'],
-                updated=datetime.datetime.now(),
-                reporter_name=entry['reporter'],
-                url=entry['url'],
-                request_data=json.dumps(entry['data']),
-                request_method=entry['method'],
-                request_response_code=entry['test_status'],
-                tested=entry['last_test'], reported=entry['report_date'],
-                patched=entry['patched_date'], published=published,
-                scanable=scanable, incident_id=entry['Incident'],
-                organization_id=org_id, labels_=list_types
-            )
-            db.session.add(vuln)
-        db.session.commit()
-    click.echo('Done')
+                print('Adding')
+                print(entry['url'])
+                if entry['published'] == 'yes':
+                    published = True
+                else:
+                    published = False
+                if entry['scanable'] == 'yes':
+                    scanable = True
+                else:
+                    scanable = False
+                user_id = dos.get(entry['DO'], 1)
+                org_id = constituents.get(entry['constituent'], 1)
+                list_types = []
+                vtype = entry['type']
+                if Tag.query.filter_by(name=vtype).first():
+                    list_types.append(Tag.query.filter_by(name=vtype).first())
+                else:
+                    list_types.append(Tag(name=vtype))
+                vuln = Vulnerability(
+                    user_id=user_id,
+                    check_string=entry['check_string'],
+                    updated=datetime.datetime.now(),
+                    reporter_name=entry['reporter'],
+                    url=entry['url'],
+                    request_data=json.dumps(entry['data']),
+                    request_method=entry['method'],
+                    test_type='request',
+                    request_response_code=entry['test_status'],
+                    tested=entry['last_test'],
+                    reported=entry['report_date'],
+                    patched=entry['patched_date'],
+                    published=published,
+                    scanable=scanable,
+                    incident_id=entry['Incident'],
+                    organization_id=org_id,
+                    labels_=list_types
+                )
+                db.session.add(vuln)
+            db.session.commit()
+        print('Done')
 
 
 @cli.command()

@@ -5,14 +5,12 @@
 
 """
 import json
-from ..models import Report, Sample
-from .decorators import json_response, paginate
+from app.core import ApiResponse, ApiPagedResponse
+from app.models import Report, Sample
 from . import api
 
 
 @api.route('/reports', methods=['GET'])
-@json_response
-@paginate
 def get_reports():
     """Return a paginated list of malware analysis reports
 
@@ -74,11 +72,10 @@ def get_reports():
     :status 200: IP ranges endpoint found, response may be empty
     :status 404: Not found
     """
-    return Report.query
+    return ApiPagedResponse(Report.query)
 
 
 @api.route('/reports/<int:report_id>', methods=['GET'])
-@json_response
 def get_report(report_id):
     """Return analysis report identified by :attr:`app.models.Report.report_id`
 
@@ -119,11 +116,10 @@ def get_report(report_id):
     :status 404: Resource not found
     """
     i = Report.query.get_or_404(report_id)
-    return i.serialize()
+    return ApiResponse(i.serialize())
 
 
 @api.route('/reports/<string:sha256>', methods=['GET'])
-@json_response
 def get_sample_report(sha256):
     """Return last analysis report for sample identified by
         :attr:`app.models.Sample.sha256`
@@ -200,4 +196,4 @@ def get_sample_report(sha256):
         if 'report' in serialized:
             serialized['report_parsed'] = json.loads(serialized['report'])
         reports.append(serialized)
-    return {'reports': reports}
+    return ApiResponse({'reports': reports})

@@ -8,10 +8,10 @@ from io import BytesIO
 import gzip
 from flask import request, current_app, g, send_file
 from flask_jsonschema import validate
+from app.core import ApiResponse, ApiPagedResponse, ApiException
 from app import vxstream, db
 from app.api import api
 from app.models import Report, Sample
-from app.api.decorators import json_response, paginate
 
 IN_QUEUE = 40
 IN_PROGRESS = 30
@@ -37,8 +37,6 @@ _name_to_state = {
 
 
 @api.route('/analysis/vxstream', methods=['GET'])
-@json_response
-@paginate
 def get_vxstream_analyses():
     """Return a paginated list of VxStream Sandbox JSON reports.
 
@@ -56,10 +54,8 @@ def get_vxstream_analyses():
 
         HTTP/1.0 200 OK
         Content-Type: application/json
-        DO-Page-Next: null
-        DO-Page-Prev: null
-        DO-Page-Current: 1
-        DO-Page-Item-Count: 1
+        Link: <.../api/1.0/analysis/vxstream?page=1&per_page=20>; rel="First",
+              <.../api/1.0/analysis/vxstream?page=0&per_page=20>; rel="Last"
 
         {
           "count": 3,
@@ -83,46 +79,39 @@ def get_vxstream_analyses():
               "type": "Dynamic analysis"
             }
           ],
-          "next": null,
-          "page": 1,
-          "prev": null
+          "page": 1
         }
 
     :reqheader Accept: Content type(s) accepted by the client
     :resheader Content-Type: this depends on `Accept` header or request
-    :resheader DO-Page-Next: Next page URL
-    :resheader DO-Page-Prev: Previous page URL
-    :resheader DO-Page-Curent: Current page number
-    :resheader DO-Page-Item-Count: Total number of items
+    :resheader Link: Describe relationship with other resources
 
     :>json array items: VxStream reports
     :>jsonarr integer id: AV scan unique ID
     :>jsonarr string name: File name
     :>jsonarr string sha256: SHA256 message-digest of file
     :>json integer page: Current page number
-    :>json integer prev: Previous page number
-    :>json integer next: Next page number
     :>json integer count: Total number of items
 
     :status 200: Reports found
     :status 404: Resource not found
     """
-    return Report.query.filter_by(type_id=3)
+    return ApiPagedResponse(Report.query.filter_by(type_id=3))
 
 
-@api.route('/analysis/vxstream/report', defaults={'type': 'html'})
-@api.route('/analysis/vxstream/report/<string:sha256>/<envid>/<type>',
+@api.route('/analysis/vxstream/report', defaults={'type_': 'html'})
+@api.route('/analysis/vxstream/report/<string:sha256>/<envid>/<type_>',
            methods=['GET'])
-def get_vxstream_report(sha256, envid, type):
+def get_vxstream_report(sha256, envid, type_):
     # XML, HTML, BIN and PCAP are GZipped
     Sample.query.filter_by(sha256=sha256).first_or_404()
     headers = {
         'Accept': 'text/html',
         'User-Agent': 'VxStream Sandbox API Client'}
-    params = {'type': type, 'environmentId': envid}
+    params = {'type': type_, 'environmentId': envid}
     vx = vxstream.api.get('result/{}'.format(sha256),
                           params=params, headers=headers)
-    if type in ['xml', 'html', 'bin', 'pcap']:
+    if type_ in ['xml', 'html', 'bin', 'pcap']:
         return gzip.decompress(vx)
     return vx
 
@@ -146,7 +135,6 @@ def get_vxstream_download(sha256, eid, ftype):
 
 
 @api.route('/analysis/vxstream/<string:sha256>/<envid>', methods=['GET'])
-@json_response
 def get_vxstream_analysis(sha256, envid):
     """Return VxStream Sandbox dynamic analysis for sample identified by
         :attr:`~app.models.Sample.sha256`, running in :param: envid.
@@ -265,14 +253,13 @@ def get_vxstream_analysis(sha256, envid):
             }
         else:
             vx = vxstream.api.get('summary/{}'.format(sha256), params=params)
-        return vx
+        return ApiResponse(vx)
     else:
         state['response']['environmentId'] = envid
-        return state
+        return ApiResponse(state)
 
 
 @api.route('/analysis/vxstream', methods=['POST', 'PUT'])
-@json_response
 def add_vxstream_analysis():
     """Submit sample to the VxStream Sandbox. Also accepts :http:method:`put`.
 
@@ -346,15 +333,14 @@ def add_vxstream_analysis():
             statuses.append(resp['response'])
             if resp['response_code'] != 0:
                 current_app.log.debug(resp)
-    return {
+    return ApiResponse({
         'statuses': statuses,
         'message': 'Your files have been submitted for dynamic analysis'
-    }, 202
+    }, 202)
 
 
 @api.route('/analysis/vxstream-url', methods=['POST', 'PUT'])
 @validate('analysis', 'add_vxstream_url_analysis')
-@json_response
 def add_vxstream_url_analysis():
     """Submit URLs to the VxStream Sandbox. Also accepts :http:method:`put`.
 
@@ -422,6 +408,9 @@ def add_vxstream_url_analysis():
             }
             resp = vxstream.submiturl(sdata, headers=headers)
 
+            if resp['response_code'] == -1:
+                raise ApiException(resp['response']['error'])
+
             samples[resp['response']['sha256']] = url
             statuses.append(resp['response'])
             if resp['response_code'] != 0:
@@ -432,14 +421,13 @@ def add_vxstream_url_analysis():
                       md5='N/A', sha1='N/A', sha512='N/A', ctph='N/A')
         db.session.add(surl)
     db.session.commit()
-    return {
+    return ApiResponse({
         'statuses': statuses,
         'message': 'Your URLs have been submitted for dynamic analysis'
-    }, 202
+    }, 202)
 
 
 @api.route('/analysis/vxstream/environments')
-@json_response
 def get_vxstream_environments():
     """Returns a list of available VxStream Sandbox environments
 
@@ -500,7 +488,7 @@ def get_vxstream_environments():
     envs = []
     for eid, env in st['response']['environmentList'].items():
         envs.append({'id': int(eid), 'name': env})
-    return {'environments': sorted(envs, key=lambda i: i['id'])}
+    return ApiResponse({'environments': sorted(envs, key=lambda i: i['id'])})
 
 
 def _submit_to_vxstream(sha256, env, with_children=False):

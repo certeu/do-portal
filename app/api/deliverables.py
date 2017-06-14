@@ -1,13 +1,12 @@
 from flask import request, redirect, url_for
-from . import api
-from ..import db
-from ..models import Deliverable
-from .decorators import json_response
 from flask_jsonschema import validate
+from app import db
+from app.core import ApiResponse
+from app.models import Deliverable
+from . import api
 
 
 @api.route('/deliverables', methods=['GET'])
-@json_response
 def get_deliverables():
     """Return a list of available deliverables
 
@@ -50,11 +49,10 @@ def get_deliverables():
     :status 404: Not found
     """
     deliverables = Deliverable.query.all()
-    return {'deliverables': [o.serialize() for o in deliverables]}
+    return ApiResponse({'deliverables': [o.serialize() for o in deliverables]})
 
 
 @api.route('/deliverables/<int:deliverable_id>', methods=['GET'])
-@json_response
 def get_deliverable(deliverable_id):
     """Get deliverable from database
 
@@ -90,12 +88,11 @@ def get_deliverable(deliverable_id):
     :status 404: Resource not found
     """
     g = Deliverable.query.get_or_404(deliverable_id)
-    return g.serialize()
+    return ApiResponse(g.serialize())
 
 
 @api.route('/deliverables', methods=['POST', 'PUT'])
 @validate('deliverables', 'add_deliverable')
-@json_response
 def add_deliverable():
     """Create new deliverable type
 
@@ -143,13 +140,14 @@ def add_deliverable():
     g = Deliverable().from_json(request.json)
     db.session.add(g)
     db.session.commit()
-    return {'deliverable': g.serialize(), 'message': 'Deliverable added'}, \
-        201, {'Location': url_for('api.get_deliverable', deliverable_id=g.id)}
+    return ApiResponse(
+        {'deliverable': g.serialize(), 'message': 'Deliverable added'},
+        201,
+        {'Location': url_for('api.get_deliverable', deliverable_id=g.id)})
 
 
 @api.route('/deliverables/<int:deliverable_id>', methods=['PUT'])
 @validate('deliverables', 'update_deliverable')
-@json_response
 def update_deliverable(deliverable_id):
     """Update deliverable
 
@@ -200,11 +198,10 @@ def update_deliverable(deliverable_id):
     g.from_json(request.json)
     db.session.add(g)
     db.session.commit()
-    return {'message': 'Deliverable saved'}
+    return ApiResponse({'message': 'Deliverable saved'})
 
 
 @api.route('/deliverables/<int:deliverable_id>', methods=['DELETE'])
-@json_response
 def delete_deliverable(deliverable_id):
     """Delete deliverable type
 
@@ -239,11 +236,9 @@ def delete_deliverable(deliverable_id):
     """
     g = Deliverable.query.filter(
         Deliverable.id == deliverable_id
-    ).first()
-    if not g:
-        return {'message': 'No such deliverable'}, 404
+    ).first_or_404()
 
     g.deleted = 1
     db.session.add(g)
     db.session.commit()
-    return {'message': 'Deliverable deleted'}
+    return ApiResponse({'message': 'Deliverable deleted'})

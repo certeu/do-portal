@@ -8,15 +8,13 @@
 """
 import json
 from flask import request, current_app, g
+from app.core import ApiResponse, ApiPagedResponse
 from app.tasks import analysis
 from app.api import api
 from app.models import Sample, Report
-from app.api.decorators import json_response, paginate
 
 
 @api.route('/analysis/static', methods=['GET'])
-@json_response
-@paginate
 def get_analyses():
     """Return a paginated list of static analyses performed.
 
@@ -34,10 +32,8 @@ def get_analyses():
 
         HTTP/1.0 200 OK
         Content-Type: application/json
-        DO-Page-Next: null
-        DO-Page-Prev: null
-        DO-Page-Current: 1
-        DO-Page-Item-Count: 1
+        Link: <.../api/1.0/analysis/static?page=1&per_page=20>; rel="First",
+              <.../api/1.0/analysis/static?page=0&per_page=20>; rel="Last"
 
         {
           "count": 3,
@@ -61,35 +57,27 @@ def get_analyses():
               "type": "Static analysis"
             }
           ],
-          "next": null,
-          "page": 1,
-          "prev": null
+          "page": 1
         }
 
     :reqheader Accept: Content type(s) accepted by the client
     :resheader Content-Type: this depends on `Accept` header or request
-    :resheader DO-Page-Next: Next page URL
-    :resheader DO-Page-Prev: Previous page URL
-    :resheader DO-Page-Curent: Current page number
-    :resheader DO-Page-Item-Count: Total number of items
+    :resheader Link: Describe relationship with other resources
 
     :>json array items: Static analyzer reports
     :>jsonarr integer id: AV scan unique ID
     :>jsonarr string name: File name
     :>jsonarr string sha256: SHA256 message-digest of file
     :>json integer page: Current page number
-    :>json integer prev: Previous page number
-    :>json integer next: Next page number
     :>json integer count: Total number of items
 
     :status 200: Reports found
     :status 404: Resource not found
     """
-    return Report.query.filter_by(type_id=1)
+    return ApiPagedResponse(Report.query.filter_by(type_id=1))
 
 
 @api.route('/analysis/static/<string:sha256>', methods=['GET'])
-@json_response
 def get_analysis(sha256):
     """Return last static analysis report for sample identified by
         :attr:`~app.models.Sample.sha256`.
@@ -178,20 +166,19 @@ def get_analysis(sha256):
     :status 200: Static analysis report
     :status 404: Resource not found
     """
+    # fixme: we "loads" here just to "dumps" in the decorator
+    # rv = make_response({'analysis': last_sa.report})
+    # rv.headers['Content-Type'] = 'application/json'
+    # return rv
     s = Sample.query.filter_by(sha256=sha256).first_or_404()
     report = Report.query.filter_by(sample_id=s.id, type_id=1).first_or_404()
     serialized = report.serialize()
     if 'report' in serialized:
         serialized['report_parsed'] = json.loads(serialized['report'])
-    return serialized
-    # fixme: we "loads" here just to "dumps" in the decorator
-    # rv = make_response({'analysis': last_sa.report})
-    # rv.headers['Content-Type'] = 'application/json'
-    # return rv
+    return ApiResponse(serialized)
 
 
 @api.route('/analysis/static', methods=['POST', 'PUT'])
-@json_response
 def add_analysis():
     """Start static analysis of files
     Also accepts :http:method:`put`.
@@ -271,7 +258,7 @@ def add_analysis():
                 analysis.static.apply_async(args=[child.sha256], countdown=1)
         except AttributeError as ae:
             current_app.log.info(ae)
-    return {
-        'files': request.json['files'],
-        'message': 'Your files have been submitted for static analysis'
-    }, 202
+    return ApiResponse(
+        {'files': request.json['files'],
+         'message': 'Your files have been submitted for static analysis'},
+        202)

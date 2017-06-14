@@ -5,15 +5,14 @@
 """
 from flask import request, redirect, url_for
 from flask_jsonschema import validate
-from .. import db
-from ..models import IpRange
-from .decorators import json_response
+from app import db
+from app.core import ApiResponse
+from app.models import IpRange
 from . import api
 
 
 @api.route('/ip_ranges', methods=['GET'])
 @api.route('/ip-ranges', methods=['GET'])
-@json_response
 def get_ip_ranges():
     """Return IP ranges
 
@@ -56,12 +55,11 @@ def get_ip_ranges():
     :status 404: Not found
     """
     ips = IpRange.query.all()
-    return {'ip_ranges': [r.serialize() for r in ips]}
+    return ApiResponse({'ip_ranges': [r.serialize() for r in ips]})
 
 
 @api.route('/ip_ranges/<int:range_id>', methods=['GET'])
 @api.route('/ip-ranges/<int:range_id>', methods=['GET'])
-@json_response
 def get_ip_range(range_id):
     """Return IP range identified by `range_id`
 
@@ -96,13 +94,13 @@ def get_ip_range(range_id):
     :status 200: Returns IP range details object
     :status 404: Resource not found
     """
-    return IpRange.query.get_or_404(range_id)
+    ip_range = IpRange.query.get_or_404(range_id)
+    return ApiResponse(ip_range)
 
 
 @api.route('/ip_ranges', methods=['POST', 'PUT'])
 @api.route('/ip-ranges', methods=['POST', 'PUT'])
 @validate('ip_ranges', 'add_ip_range')
-@json_response
 def add_ip_range():
     """Add new IP range. Accepts :http:method:`POST` or :http:method:`PUT`.
 
@@ -166,14 +164,15 @@ def add_ip_range():
     i = IpRange().from_json(request.json)
     db.session.add(i)
     db.session.commit()
-    return {'ip_range': i.serialize(), 'message': 'IP range added'}, 201,\
-           {'Location': url_for('api.get_ip_range', range_id=i.id)}
+    return ApiResponse(
+        {'ip_range': i.serialize(), 'message': 'IP range added'},
+        201,
+        {'Location': url_for('api.get_ip_range', range_id=i.id)})
 
 
 @api.route('/ip_ranges/<int:range_id>', methods=['PUT'])
 @api.route('/ip-ranges/<int:range_id>', methods=['PUT'])
 @validate('ip_ranges', 'update_ip_range')
-@json_response
 def update_ip_range(range_id):
     """Update IP range
 
@@ -224,12 +223,11 @@ def update_ip_range(range_id):
     i.from_json(request.json)
     db.session.add(i)
     db.session.commit()
-    return {'message': 'IP range saved'}
+    return ApiResponse({'message': 'IP range saved'})
 
 
 @api.route('/ip_ranges/<int:range_id>', methods=['DELETE'])
 @api.route('/ip-ranges/<int:range_id>', methods=['DELETE'])
-@json_response
 def delete_ip_range(range_id):
     """Delete IP range
 
@@ -270,4 +268,4 @@ def delete_ip_range(range_id):
     i.deleted = 1
     db.session.add(i)
     db.session.commit()
-    return {'message': 'IP range deleted'}
+    return ApiResponse({'message': 'IP range deleted'})

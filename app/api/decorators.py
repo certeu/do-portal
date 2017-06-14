@@ -23,6 +23,8 @@ def json_response(f):
 
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
+        current_app.log.warn('Using the json_response decorator is deprecated.'
+                             'Please use app.core.ApiResponse.')
         # invoke the wrapped function
         rv = f(*args, **kwargs)
         # wrapped function is a redirect

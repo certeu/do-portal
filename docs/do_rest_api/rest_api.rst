@@ -12,7 +12,6 @@ DO REST API
     auth
     asns
     bots
-    conferences
     deliverables
     emails
     fqdns
@@ -21,6 +20,7 @@ DO REST API
     reports
     samples
     vulnerabilities
+    analysis
 
 
 .. autoflask:: app:create_app('default')

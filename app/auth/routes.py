@@ -13,15 +13,14 @@ from app.models import User, Role, ContactEmail, Permission, Organization
 from app import ldap3_manager, db
 from itsdangerous import TimedJSONWebSignatureSerializer, BadSignature
 from . import auth
+from app.core import ApiResponse, ApiException
 from app.utils.mail import send_email
-from app.api.decorators import json_response, permission_required
-from app.api.errors import unauthorized
+from app.api.decorators import permission_required
 from app.utils import bosh_client
 from .forms import SetPasswordForm
 
 
 @auth.route('/login', methods=['POST'])
-@json_response
 def login():
     """Authenticate users
 
@@ -76,7 +75,7 @@ def login():
     :statuscode 401: Invalid credentials
     """
     if current_user.is_authenticated:
-        return {'auth': 'authenticated'}
+        return ApiResponse({'auth': 'authenticated'})
 
     email = request.json.get('email') or request.json.get('username')
     password = request.json.get('password')
@@ -90,28 +89,27 @@ def login():
                 if user.otp_enabled:
                     session['cu'] = email
                     session['cpasswd'] = password
-                    return {'auth': 'pre-authenticated'}, 200, \
-                           {'CP-TOTP-Required': user.otp_enabled}
+                    return ApiResponse({'auth': 'pre-authenticated'},
+                                       200,
+                                       {'CP-TOTP-Required': user.otp_enabled})
                 else:
                     if login_user(user, remember=True):
-                        return {'auth': 'authenticated'}
+                        return ApiResponse({'auth': 'authenticated'})
 
-            return {'message': 'Invalid username or password'}, 401
+            raise ApiException('Invalid username or password', 401)
 
         if current_app.config['LDAP_AUTH_ENABLED']:
-            resp, status = do_ldap_authentication(email, password)
-            if status == 200:
-                return resp, status
+            return do_ldap_authentication(email, password)
+
         user, authenticated = User.authenticate(email, password)
         if user and authenticated:
             if login_user(user, remember=True):
-                return {'auth': 'authenticated'}, 200
+                return ApiResponse({'auth': 'authenticated'})
 
-    return {'message': 'Invalid username or password'}, 401
+    raise ApiException('Invalid username or password', 401)
 
 
 @auth.route('/verify-totp', methods=['POST'])
-@json_response
 @validate('auth', 'verify_totp')
 def verify_totp():
     """Check the `TOTP
@@ -167,23 +165,22 @@ def verify_totp():
     password = session.pop('cpasswd', None)
     user, authenticated = User.authenticate(email, password)
     if not authenticated:
-        return unauthorized('Please login first')
+        raise ApiException('Please login first', 401)
 
     token = request.json['totp']
     user = User.query.filter_by(id=user.id).first_or_404()
     if not user.otp_enabled:
-        return {'message': 'Verification failed'}, 404
+        raise ApiException('Verification failed', 400)
 
     if user.verify_totp(token):
         if login_user(user, remember=True):
-            return {'auth': 'authenticated'}
+            return ApiResponse({'auth': 'authenticated'})
 
-    return {'message': 'Authentication code verification failed'}, 400
+    raise ApiException('Authentication code verification failed', 400)
 
 
 @auth.route('/logout')
 @login_required
-@json_response
 def logout():
     """Logout users
 
@@ -219,12 +216,11 @@ def logout():
     """
     logout_user()
     headers = {}
-    return {'logged_out': 'true'}, 200, headers
+    return ApiResponse({'logged_out': 'true'}, 200, headers)
 
 
 @auth.route('/register', methods=['POST'])
 @validate('auth', 'register_cp_account')
-@json_response
 @login_required
 @permission_required(Permission.ADDCPACCOUNT)
 def register():
@@ -303,14 +299,12 @@ def register():
                webroot=current_app.config['CP_WEB_ROOT'],
                token=activation_token, expiry=expiry / 60)
     current_app.log.debug(activation_token)
-    return {'message': 'User registered. '
-                       'An activation email was sent to {}'.format(user.email)
-            }, 201
+    msg = 'User registered. An activation email was sent to {}'
+    return ApiResponse({'message': msg.format(user.email)}, 201)
 
 
 @auth.route('/unregister', methods=['POST'])
 @validate('auth', 'unregister_cp_account')
-@json_response
 @login_required
 @permission_required(Permission.ADDCPACCOUNT)
 def unregister():
@@ -369,14 +363,12 @@ def unregister():
     notify = user.email
     User.query.filter_by(email=request.json['email']).delete()
     db.session.commit()
-    return {'message': 'User has been unregistered. '
-                       'A notification has been sent to {}'.format(notify)
-            }, 200
+    msg = 'User has been unregistered. A notification has been sent to {}'
+    return ApiResponse({'message': msg.format(notify)})
 
 
 @auth.route('/account')
 @login_required
-@json_response
 def account():
     """Return account information
 
@@ -411,12 +403,11 @@ def account():
     :statuscode 200:
     :statuscode 401: Unauthorized
     """
-    return current_user
+    return ApiResponse(current_user.serialize())
 
 
 @auth.route('/change-password', methods=['POST'])
 @validate('auth', 'change_password')
-@json_response
 def change_password():
     """Change password
 
@@ -471,28 +462,27 @@ def change_password():
     :statuscode 422: Unprocessable Entity.
     """
     if not current_user.check_password(request.json.get('current_password')):
-        return {'message': 'Invalid current password'}, 400
+        raise ApiException('Invalid current password')
     new_pass = request.json.get('new_password', None)
     confirm_pass = request.json.get('confirm_password', None)
     if new_pass != confirm_pass:
-        return {'message': 'Confirmation password does not match'}, 400
+        raise ApiException('Confirmation password does not match')
     try:
         current_user.password = request.json.get('new_password')
         db.session.add(current_user)
         db.session.commit()
-        return {'message': 'Your password has been updated'}
+        return ApiResponse({'message': 'Your password has been updated'})
     except AssertionError as ae:
-        return {'message': str(ae)}
+        raise ApiException(ae)
 
 
 @auth.route('/reset-api-key')
 @login_required
-@json_response
 def reset_api_key():
     current_user.api_key = current_user.generate_api_key()
     db.session.add(current_user)
     db.session.commit()
-    return {'message': 'Your API key has been reset'}
+    return ApiResponse({'message': 'Your API key has been reset'})
 
 
 @auth.route('/activate-account/<token>', methods=['GET', 'POST'])
@@ -526,7 +516,6 @@ def set_password(token):
 
 @auth.route('/bosh-session', methods=['GET'])
 @login_required
-@json_response
 def do_bosh_auth():
     """Start a BOSH session if allowed by configuration
 
@@ -580,13 +569,13 @@ def do_bosh_auth():
     else:
         service_url = current_app.config['BOSH_SERVICE']
         rooms = current_app.config['ROOMS']
-    return {
+    return ApiResponse({
         'service': service_url,
         'rooms': rooms,
         'jid': c.jid,
         'sid': c.sid,
         'rid': c.rid,
-    }
+    })
 
 
 def do_ldap_authentication(username, password):
@@ -608,9 +597,9 @@ def do_ldap_authentication(username, password):
             u = User.query.filter_by(
                 email=ldap_info['userPrincipalName'][0]).first()
         if login_user(u, remember=True):
-            return {'auth': 'authenticated'}, 200
+            return ApiResponse({'auth': 'authenticated'}, 200)
 
-    return {'message': 'Invalid username or password'}, 401
+    raise ApiException('Invalid username or password', 401)
 
 
 def _ldap_authenticate(username, password):
@@ -657,7 +646,6 @@ def _random_ascii():
 @auth.route('/toggle-2fa', methods=['POST'])
 @validate('auth', 'toggle_2fa')
 @login_required
-@json_response
 def toggle_2fa():
     """Toggle Two-Factor authentication
 
@@ -702,14 +690,14 @@ def toggle_2fa():
         user.otp_enabled = False
         db.session.add(user)
         db.session.commit()
-        return {'message': 'Your options have been saved'}
+        return ApiResponse({'message': 'Your options have been saved'})
     if otp_toggle and user.verify_totp(totp):
         user.otp_enabled = True
     else:
-        return {'message': 'Authentication code verification failed'}, 400
+        raise ApiException('Authentication code verification failed')
     db.session.add(user)
     db.session.commit()
-    return {'message': 'Your options have been saved'}
+    return ApiResponse({'message': 'Your options have been saved'})
 
 
 @auth.route('/2fa-qrcode')

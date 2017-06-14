@@ -1,12 +1,10 @@
 from flask import g
-from app.api.decorators import json_response, paginate
+from app.core import ApiResponse, ApiPagedResponse
 from . import cp
 from app.models import Vulnerability
 
 
 @cp.route('/vulnerabilities', methods=['GET'])
-@json_response
-@paginate(headers_prefix='CP-')
 def get_vulnerabilities():
     """Return a paginated list of available vulnerabilities
     For vulnerability details see
@@ -26,9 +24,12 @@ def get_vulnerabilities():
 
         HTTP/1.0 200 OK
         Content-Type: application/json
+        Link: <.../api/1.0/analysis/av?page=1&per_page=20>; rel="First",
+              <.../api/1.0/analysis/av?page=1&per_page=20>; rel="Last"
 
         {
-          "vulnerabilities": [
+          "count": 1,
+          "items": [
             {
               "check_string": "--></script><script>alert('Patatas')</script>",
               "constituent": "CERT-EU",
@@ -44,11 +45,13 @@ def get_vulnerabilities():
               "updated": "2016-06-14T21:03:36",
               "url": "https://webgate.ec.europa.eu/europeaid/online-servic"
             }
-          ]
+          ],
+          "page": 1
         }
 
     :reqheader Accept: Content type(s) accepted by the client
     :resheader Content-Type: this depends on `Accept` header or request
+    :resheader Link: Describe relationship with other resources
 
     :>json array items: List of available vulnerabilities
     :>jsonarr integer id: Vulnerability unique ID
@@ -61,17 +64,18 @@ def get_vulnerabilities():
     :>jsonarr string rtir_id: RTIR investigation ID
     :>jsonarr array types: One or more vulnerability types
     :>jsonarr array updated: Last updated (last checked) date
+    :>json integer page: Current page number
+    :>json integer count: Total number of items
 
     :status 200: Vulnerabilities list
     :status 404: Not found
     """
 
-    return Vulnerability.query.filter_by(
-        organization_id=g.user.organization_id)
+    return ApiPagedResponse(Vulnerability.query.filter_by(
+        organization_id=g.user.organization_id))
 
 
 @cp.route('/vulnerabilities/<int:vuln_id>', methods=['GET'])
-@json_response
 def get_vulnerability(vuln_id):
     """Return vulnerability identified by `vuln_id`
 
@@ -125,6 +129,7 @@ def get_vulnerability(vuln_id):
     :status 200: Returns vulnerability details object
     :status 404: Resource not found
     """
-    return Vulnerability.query.\
+    vuln = Vulnerability.query.\
         filter_by(id=vuln_id, organization_id=g.user.organization_id).\
         first_or_404()
+    return ApiResponse(vuln)

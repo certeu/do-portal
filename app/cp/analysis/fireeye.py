@@ -6,52 +6,47 @@
 from lxml import etree
 from flask import session
 from flask_jsonschema import validate
+from app.core import ApiResponse, ApiException
 from app import fireeye
-from app.api.decorators import json_response
 from app.cp import cp
 
 
 @cp.route('/analysis/fireeye', methods=['GET'])
-@json_response
 def get_fireeye_analyses():
-    return {}, 501
+    raise ApiException({}, 501)
 
 
 @cp.route('/analysis/fireeye/report', defaults={'type': 'html'})
 @cp.route('/analysis/fireeye/report/<string:sha256>/<envid>/<type>',
           methods=['GET'])
 def get_fireeye_report(sha256, envid, type):
-    return {}, 501
+    raise ApiException({}, 501)
 
 
 @cp.route('/analysis/fireeye/download', defaults={'ftype': 'bin', 'eid': 1})
 @cp.route('/analysis/fireeye/download/<string:sha256>/<eid>/<ftype>',
           methods=['GET'])
 def get_fireeye_download(sha256, eid, ftype):
-    return {}, 501
+    raise ApiException({}, 501)
 
 
 @cp.route('/analysis/fireeye/<string:sha256>/<envid>', methods=['GET'])
-@json_response
 def get_fireeye_analysis(sha256, envid):
-    return {}, 501
+    raise ApiException({}, 501)
 
 
 @cp.route('/analysis/fireeye', methods=['POST', 'PUT'])
-@json_response
 def add_fireeye_analysis():
-    return {}, 501
+    raise ApiException({}, 501)
 
 
 @cp.route('/analysis/fireeye-url', methods=['POST', 'PUT'])
 @validate('analysis', 'add_fireeye_url_analysis')
-@json_response
 def add_fireeye_url_analysis():
-    return {}, 501
+    raise ApiException({}, 501)
 
 
 @cp.route('/analysis/fireeye/environments')
-@json_response
 def get_fireeye_environments():
     """Returns a list of available FireEye Sandbox environments
 
@@ -117,4 +112,4 @@ def get_fireeye_environments():
     for profile in e.xpath('//sensors/sensor/profiles/profile'):
         envs.append({'id': profile.get('id'), 'name': profile.get('name')})
 
-    return {'environments': sorted(envs, key=lambda i: i['id'])}
+    return ApiResponse({'environments': sorted(envs, key=lambda i: i['id'])})

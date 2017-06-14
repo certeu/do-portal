@@ -82,5 +82,11 @@
       "abbreviation",
       "full_name"
     ]
+  },
+  "check": {
+    "type": "array",
+    "items": {
+      "type": "string"
+    }
   }
 }

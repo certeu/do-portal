@@ -122,7 +122,11 @@ class Model(db.Model):
         return '{} #{}'.format(self.__class__.__name__, self.id)
 
     def __repr__(self):
-        return '{}.get({})'.format(self.__class__.__name__, self.id)
+        kws = {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+        args_ = []
+        for k, v in kws.items():
+            args_.append('{!s}={!r}'.format(k, str(v)))
+        return '{}({})'.format(self.__class__.__name__, ', '.join(args_))
 
 
 def get_mailman_client():
@@ -269,7 +273,7 @@ class User(UserMixin, Model, SerializerMixin):
     def get_auth_token(self, last_totp=None):
         """Think of :class:`URLSafeTimedSerializer` `salt` parameter as
         namespace instead of salt. `The salt explained:
-         <https://pythonhosted.org/itsdangerous/#the-salt>`_.
+        <https://pythonhosted.org/itsdangerous/#the-salt>`_.
         """
         data = [self.email, self._password, str(self.id)]
         if last_totp:
@@ -340,8 +344,9 @@ class User(UserMixin, Model, SerializerMixin):
             email = 'test-{}@{}.com'.format(
                 User.random_str(8), User.random_str(8))
             current_app.config['ADMINS'].append(email)
-            Role._Role__insert_default_roles()
-            user = User(name=name, email=email, password='e9c9525ef737')
+            Role._Role__insert_defaults()
+            user = User(name=name, email=email, password='e9c9525ef737',
+                        otp_enabled=True)
             user.api_key = user.generate_api_key()
             db.session.add(user)
             db.session.commit()
@@ -587,7 +592,7 @@ class Organization(Model, SerializerMixin):
     using-an-and-or-or-and-i-am-getting-an-error-message-about-foreign-keys
     """
     __tablename__ = 'organizations'
-    __public__ = ('id', 'abbreviation', 'full_name', 'abuse_emails', 'groups',
+    __public__ = ('id', 'abbreviation', 'full_name', 'abuse_emails',
                   'ip_ranges', 'fqdns', 'asns', 'old_ID', 'is_sla',
                   'mail_template', 'mail_times', 'group_id',
                   'group', 'contact_emails')
@@ -728,23 +733,25 @@ class Tag(Model, SerializerMixin):
 
 class Vulnerability(Model, SerializerMixin):
     __tablename__ = 'vulnerabilities'
-    __public__ = ('id', 'type', 'constituent', 'do', 'check_string', 'types',
+    __public__ = ('id', 'constituent', 'do', 'check_string', 'types',
                   'updated', 'url', 'reported', 'patched', 'request_method',
                   'tested', 'request_data', 'request_response_code',
                   'incident_id', 'reporter_name', 'reporter_email',
-                  'organization_id', 'notes', 'published', 'scanable')
+                  'organization_id', 'notes', 'published', 'scanable',
+                  'test_type')
     query_class = FilteredQuery
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'))
     incident_id = db.Column(db.Integer, nullable=True)
-    check_string = db.Column(db.Text)
     reporter_name = db.Column(db.String(255))
     reporter_email = db.Column(db.String(255))
     #: PoC
     url = db.Column(db.Text)
     request_method = db.Column(db.Enum('GET', 'POST', 'PUT'), default='GET')
     request_data = db.Column(db.Text)
+    check_string = db.Column(db.Text)
+    test_type = db.Column(db.Enum('request'), default='request')
     request_response_code = db.Column(db.Integer, nullable=True)
     tested = db.Column(db.DateTime, nullable=True)
     reported = db.Column(db.DateTime, default=datetime.datetime.utcnow)

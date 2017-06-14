@@ -1,214 +1,123 @@
-import json
 import time
+import pytest
 from flask import url_for
-from flask_login import current_user
-import onetimepass
+from .conftest import assert_msg
+
 from app.models import User
-from tests import DOTestCase
-from unittest.mock import patch
 
 
-class AuthTestCase(DOTestCase):
+def test_login_logout(client):
+    rv = client.post(
+        url_for('auth.login'),
+        json=dict(email=client.test_user.email,
+                  password='1e9c9525ef737'))
+    assert rv.status_code == 200
 
-    def setUp(self):
-        super(AuthTestCase, self).setUp()
-        self.current_user = User.create_test_user()
 
-    def create_organization(self):
-        return self.client.post(
-            url_for('api.add_organization'),
-            data=json.dumps(dict(
-                abbreviation="CERT-EU",
-                full_name="Computer Emergency Response Team for EU "
-                          "Institutions Agencies and Bodies",
-                ip_ranges=["212.8.189.16/28"],
-                abuse_emails=["cert-eu@ec.europa.eu"],
-                contact_emails=[{"email": self.current_user.email}],
-                asns=[5400],
-                fqdns=["cert.europa.eu"]
-            )),
-            headers=self.get_req_headers()
-        )
+def test_verify_totp(client, monkeypatch):
+    monkeypatch.setattr(User, 'authenticate',
+                        lambda u, a: (client.test_user, True))
+    client.application.config['CP_WEB_ROOT'] = 'http://localhost'
+    client.test_user.otp_enabled = True
+    rv = client.post(
+        url_for('auth.verify_totp'),
+        json=dict(totp=123456)
+    )
+    assert rv.status_code == 200
 
-    def test_login_logout(self):
-        rv = self.login('invalid@test.com', 'invalid')
-        self.assertTrue(rv.status_code == 401)
 
-        rv = self.login(self.current_user.email)
-        rv = self.login(self.current_user.email)
-        self.assertTrue(rv.status_code == 200)
-        rv = self.logout()
-        self.assertJSONIsNotNone(rv, 'logged_out')
+@pytest.mark.parametrize('toggle, expected_response',
+                         [(True, 200), (False, 200), ('666', 422), (123, 422)])
+def test_toggle_2fa(client, toggle, expected_response):
+    rv = client.post(
+        url_for('auth.toggle_2fa'),
+        json=dict(totp=123456, otp_toggle=toggle)
+    )
+    assert rv.status_code == expected_response
 
-    @patch.object(onetimepass, 'valid_totp')
-    def test_verify_totp(self, patched_totp):
-        patched_totp.return_value = True
-        self.app.config['CP_WEB_ROOT'] = 'https://localhost'
-        self.current_user.otp_enabled = True
-        with self.client.session_transaction() as sess:
-            self.login(self.current_user.email)
-            rv = self.client.post(
-                url_for('auth.verify_totp'),
-                headers=self.get_req_headers(),
-                data=json.dumps(dict(
-                    totp=123456
-                ))
-            )
-            self.assertTrue(rv.status_code == 200)
 
-    @patch.object(onetimepass, 'valid_totp')
-    def test_a_toggle_2fa(self, patched_totp):
-        self.login(self.current_user.email)
-        patched_totp.return_value = True
-        for toggle in (True, False):
-            rv = self.client.post(
-                url_for('auth.toggle_2fa'),
-                headers=self.get_req_headers(),
-                data=json.dumps(dict(
-                    totp=123456,
-                    otp_toggle=toggle
-                ))
-            )
-            self.assertTrue(rv.status_code == 200)
+def test_auth_brute_force(client):
+    codes = []
+    for i in range(11):
+        rv = client.get(url_for('auth.account'))
+        codes.append(rv.status_code)
+    assert all(code in codes for code in [200, 429])
+    time.sleep(2)
 
-    def test_cp_webroot_login(self):
-        self.logout()
-        self.app.config['CP_WEB_ROOT'] = 'https://localhost'
-        rv = self.login(self.current_user.email)
-        self.assertTrue(rv.status_code == 200)
-        self.logout()
 
-    def test_auth_brute_force(self):
-        codes = []
-        for i in range(11):
-            rv = self.client.post(
-                url_for('auth.login'),
-                data=json.dumps(dict(email='zxxx', password='xxxx')),
-                headers=self.get_req_headers()
-            )
-            codes.append(rv.status_code)
-        self.assertTrue(401 and 429 in codes)
+def test_bosh(client):
+    rv = client.get(url_for('auth.do_bosh_auth'))
+    assert rv.status_code == 200
 
-    def test_bosh(self):
-        # sleep 2 seconds to clear the effects of test_auth_brute_force
-        time.sleep(2)
-        self.login(self.current_user.email)
-        rv = self.client.get(
-            url_for('auth.do_bosh_auth'),
-            headers=self.get_req_headers()
-        )
-        self.assertTrue(rv.status_code == 200)
-        json_data = json.loads(rv.data.decode('utf-8'))
-        self.assertDictEqual(
-            json_data,
-            {
-                'service': self.app.config['BOSH_SERVICE'],
-                'rooms': self.app.config['ROOMS'],
-                'jid': 'test@abusehelperlab.cert.europa.eu/test-666',
-                'rid': 4387476,
-                'sid': '205be616f1bc48cc9ca7e405fa08adb7098af809',
-            }
-        )
+    cfg = client.application.config
+    assert rv.json == {
+        'service': cfg['BOSH_SERVICE'],
+        'rooms': cfg['ROOMS'],
+        'jid': 'test@abusehelperlab.cert.europa.eu/test-666',
+        'rid': 4387476,
+        'sid': '205be616f1bc48cc9ca7e405fa08adb7098af809',
+    }
 
-    def test_my_account(self):
-        self.login(self.current_user.email)
 
-        rv = self.client.get(
-            url_for('auth.account'),
-            headers=self.get_req_headers()
-        )
-        self.assertJSONMsg(rv, 'email', self.current_user.email)
-        self.assertJSONMsg(rv, 'api_key', self.current_user.api_key)
+def test_my_account(client):
+    rv = client.get(url_for('auth.account'))
+    assert_msg(rv, 'email', client.test_user.email)
+    assert_msg(rv, 'api_key', client.test_user.api_key)
+    with pytest.raises(AttributeError):
+        ro = client.test_user.password
+        assert ro is False
 
-    def test_reset_api_key(self):
-        old_api_key = self.current_user.api_key
-        self.login(self.current_user.email)
 
-        rv = self.client.get(
-            url_for('auth.reset_api_key'),
-            headers=self.get_req_headers()
-        )
-        self.assertJSONMsg(rv, 'message', 'Your API key has been reset')
-        self.assertFalse(self.current_user.api_key == old_api_key)
+def test_reset_api_key(client):
+    rv = client.get(url_for('auth.reset_api_key'))
+    assert_msg(rv, value='Your API key has been reset')
 
-    def test_set_password(self):
-        self.login(self.current_user.email)
-        token = self.current_user.generate_reset_token()
-        rv = self.client.post(
-            url_for('auth.set_password', token=token),
-            headers={'Accept': 'application/json'},
-            follow_redirects=True,
-            data=dict(password='iwdw7PS8p9kO8G0WUIGrkdhE6',
-                      confirm_password='iwdw7PS8p9kO8G0WUIGrkdhE6')
-        )
-        self.assertTrue(rv.status_code == 200)
 
-    def test_change_password(self):
-        self.login(self.current_user.email)
-        self.current_user.password = old_password = 'changeme'
+def test_set_password(client):
+    token = client.test_user.generate_reset_token()
+    rv = client.post(
+        url_for('auth.set_password', token=token),
+        follow_redirects=True,
+        json=dict(password='e9c9525ef737',
+                  confirm_password='e9c9525ef737'))
+    assert rv.status_code == 200
 
-        rv = self.client.post(
-            url_for('auth.change_password'),
-            data=json.dumps(dict(
-                current_password='not-old-pass',
-                new_password='changedpass',
-                confirm_password='changedpass'
-            )),
-            headers=self.get_req_headers()
-        )
-        self.assertJSONMsg(rv, 'message', 'Invalid current password', 400)
 
-        rv = self.client.post(
-            url_for('auth.change_password'),
-            data=json.dumps(dict(
-                current_password=old_password,
-                new_password='changedpass',
-                confirm_password='changedpassmiss'
-            )),
-            headers=self.get_req_headers()
-        )
-        self.assertJSONMsg(
-            rv, 'message', 'Confirmation password does not match', 400)
+changepw_params = [
+    ({'current_password': 'not-old-pass',
+      'new_password': 'changedpass',
+      'confirm_password': 'changedpass'}, 'Invalid current password', 400),
+    ({'current_password': 'e9c9525ef737',
+      'new_password': 'changedpass',
+      'confirm_password': 'changedpassmiss'},
+     'Confirmation password does not match', 400),
+    ({'current_password': 'e9c9525ef737',
+      'new_password': 'changedpass',
+      'confirm_password': 'changedpass'},
+     'Your password has been updated', 200),
+]
 
-        rv = self.client.post(
-            url_for('auth.change_password'),
-            data=json.dumps(dict(
-                current_password=old_password,
-                new_password='changedpass',
-                confirm_password='changedpass'
-            )),
-            headers=self.get_req_headers()
-        )
-        self.assertJSONMsg(rv, 'message', 'Your password has been updated')
 
-        with self.assertRaises(AttributeError):
-            cantread = self.current_user.password
+@pytest.mark.parametrize('post_data, msg, status_code', changepw_params)
+def test_change_password(client, post_data, msg, status_code):
+    rv = client.post(
+        url_for('auth.change_password'),
+        json=post_data
+    )
+    assert_msg(rv, key='message', value=msg, response_code=status_code)
 
-    def test_register_unregister_cp_account(self):
-        self.login(self.current_user.email)
-        rv = self.create_organization()
-        self.assertTrue(rv.status_code == 201)
-        json_data = json.loads(rv.data.decode('utf-8'))
-        org = json_data['organization']
 
-        rv = self.client.post(
-            url_for('auth.register'),
-            data=json.dumps(dict(
-                organization_id=org['id'],
-                name=org['abbreviation'] + ' (some@other7e405fa08adb709.com)',
-                email='some@other7e405fa08adb709.com'
-            )),
-            headers=self.get_req_headers()
-        )
-        self.assertTrue(rv.status_code == 201)
+def test_reg_unreg_cp_account(client):
+    rv = client.post(
+        url_for('auth.register'),
+        json=dict(organization_id=1, name='some',
+                  email='some@other7e405fa08adb709.com')
+    )
+    assert rv.status_code == 201
 
-        rv = self.client.post(
-            url_for('auth.unregister'),
-            data=json.dumps(dict(
-                organization_id=org['id'],
-                name=org['abbreviation'] + ' (some@other7e405fa08adb709.com)',
-                email='some@other7e405fa08adb709.com'
-            )),
-            headers=self.get_req_headers()
-        )
-        self.assertTrue(rv.status_code == 200)
+    rv = client.post(
+        url_for('auth.unregister'),
+        json=dict(organization_id=1, name='some',
+                  email='some@other7e405fa08adb709.com')
+    )
+    assert rv.status_code == 200

@@ -2,7 +2,7 @@ import os
 import logging
 from celery import Celery
 from config import config, Config
-from flask import Flask, g
+from flask import g
 from flask_gnupg import GPG
 from flask_jsonschema import JsonSchema
 from flask_ldap3_login import LDAP3LoginManager
@@ -13,10 +13,11 @@ from flask_migrate import Migrate
 from flask_tinyclients.nessus import Nessus
 from flask_tinyclients.vxstream import VxStream
 from flask_tinyclients.fireeye import FireEye
-from .utils import DecimalJSONEncoder
+from app.core import FlaskApi, ApiException
+from app.utils import JSONEncoder
 from .utils.mixins import Anonymous
 
-version_ = (1, 7, 1)
+version_ = (1, 8, 0)
 __version__ = '.'.join(map(str, version_[0:2]))
 __release__ = '.'.join(map(str, version_))
 
@@ -35,13 +36,13 @@ fireeye = FireEye()
 
 
 def create_app(config_name):
-    app = Flask(__name__)
+    app = FlaskApi(__name__)
     app.config.from_object(config[config_name])
     if app.config['TESTING']:
         app.config.from_envvar('DO_TESTING_CONFIG', silent=True)
     else:
         app.config.from_envvar('DO_LOCAL_CONFIG', silent=True)
-    app.json_encoder = DecimalJSONEncoder
+    app.json_encoder = JSONEncoder
     app.log = app.logger
 
     _audit_log = logging.getLogger('doaudit')
@@ -70,10 +71,6 @@ def create_app(config_name):
     app.audit_log = _audit_log
 
     if not app.config['DEBUG'] and not app.config['TESTING']:
-        # SelectiveHTMLCompress {% strip %} ... {% endstrip %}
-        app.jinja_env.add_extension(
-            'app.utils.jinja2htmlcompress.HTMLCompress'
-        )
         # configure logging for production
         # email errors to the administrators
         if app.config.get('MAIL_ERROR_RECIPIENT') is not None:
@@ -94,6 +91,10 @@ def create_app(config_name):
                 secure=secure)
             mail_handler.setLevel(logging.ERROR)
             app.logger.addHandler(mail_handler)
+
+    @app.errorhandler(ApiException)
+    def api_error_handler(err):
+        return err.to_response()
 
     init_extensions(app)
     init_routes(app)

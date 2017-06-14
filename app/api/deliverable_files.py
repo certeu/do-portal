@@ -1,15 +1,14 @@
 import os
 from flask import request, send_file, current_app
+from app.core import ApiResponse, ApiPagedResponse
 from . import api
 from ..import db
 from ..models import DeliverableFile, Permission
-from .decorators import json_response, permission_required, paginate
+from .decorators import permission_required
 from flask_jsonschema import validate
 
 
 @api.route('/files', methods=['GET'])
-@json_response
-@paginate
 def get_files():
     """Return a paginated list of available files
 
@@ -77,11 +76,10 @@ def get_files():
     :status 200: File found
     :status 404: Resource not found
     """
-    return DeliverableFile.query
+    return ApiPagedResponse(DeliverableFile.query)
 
 
 @api.route('/files/<int:file_id>', methods=['GET'])
-@json_response
 def get_file(file_id):
     """Get file from database
 
@@ -121,7 +119,7 @@ def get_file(file_id):
     :status 404: Resource not found
     """
     g = DeliverableFile.query.get_or_404(file_id)
-    return g.serialize()
+    return ApiResponse(g.serialize())
 
 
 @api.route('/files/<int:file_id>/contents', methods=['GET'])
@@ -163,7 +161,6 @@ def download_file(file_id):
 
 @api.route('/files', methods=['POST', 'PUT'])
 @validate('deliverables', 'add_files')
-@json_response
 def add_file():
     """Save file names to database.
 
@@ -220,11 +217,10 @@ def add_file():
         dfile.name = f
         db.session.add(dfile)
     db.session.commit()
-    return {'files': files, 'message': 'Files added'}, 201
+    return ApiResponse({'files': files, 'message': 'Files added'}, 201)
 
 
 @api.route('/files/<int:file_id>', methods=['DELETE'])
-@json_response
 @permission_required(Permission.ADMINISTER)
 def delete_file(file_id):
     """Delete file from database
@@ -266,4 +262,4 @@ def delete_file(file_id):
     g.deleted = 1
     db.session.add(g)
     db.session.commit()
-    return {'message': 'File deleted'}
+    return ApiResponse({'message': 'File deleted'})

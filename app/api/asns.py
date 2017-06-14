@@ -1,13 +1,12 @@
 from flask import request, redirect, url_for
 from flask_jsonschema import validate
-from .. import db
-from ..models import Asn
-from .decorators import json_response
+from app.core import ApiResponse
+from app import db
+from app.models import Asn
 from . import api
 
 
 @api.route('/asns', methods=['GET'])
-@json_response
 def get_asns():
     """Return a list of available deliverables
 
@@ -46,11 +45,10 @@ def get_asns():
     :status 404: Not found
     """
     asns = Asn.query.filter().all()
-    return {'asns': [a.serialize() for a in asns]}
+    return ApiResponse({'asns': [a.serialize() for a in asns]})
 
 
 @api.route('/asns/<int:asn_id>', methods=['GET'])
-@json_response
 def get_asn(asn_id):
     """Get deliverable from database
 
@@ -86,12 +84,11 @@ def get_asn(asn_id):
     :status 404: Resource not found
     """
     a = Asn.query.get_or_404(asn_id)
-    return a.serialize()
+    return ApiResponse(a.serialize())
 
 
 @api.route('/asns', methods=['POST', 'PUT'])
 @validate('asns', 'add_asn')
-@json_response
 def add_asn():
     """Create new ASN entry
 
@@ -142,13 +139,14 @@ def add_asn():
     a = Asn().from_json(request.json)
     db.session.add(a)
     db.session.commit()
-    return {'asn': a.serialize(), 'message': 'Asn added'}, 201, \
-           {'Location': url_for('api.get_asn', asn_id=a.id)}
+    return ApiResponse(
+        {'asn': a.serialize(), 'message': 'Asn added'},
+        201,
+        {'Location': url_for('api.get_asn', asn_id=a.id)})
 
 
 @api.route('/asns/<int:asn_id>', methods=['PUT'])
 @validate('asns', 'update_asn')
-@json_response
 def update_asn(asn_id):
     """Update ASN
 
@@ -200,11 +198,10 @@ def update_asn(asn_id):
     a.from_json(request.json)
     db.session.add(a)
     db.session.commit()
-    return {'message': 'Asn saved'}
+    return ApiResponse({'message': 'Asn saved'})
 
 
 @api.route('/asns/<int:asn_id>', methods=['DELETE'])
-@json_response
 def delete_asn(asn_id):
     """Delete deliverable type
 
@@ -244,4 +241,4 @@ def delete_asn(asn_id):
     a.deleted = 1
     db.session.add(a)
     db.session.commit()
-    return {'message': 'Asn deleted'}
+    return ApiResponse({'message': 'Asn deleted'})

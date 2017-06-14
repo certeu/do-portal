@@ -8,16 +8,16 @@ import gzip
 from io import BytesIO
 from flask import request, current_app, g, send_file
 from flask_jsonschema import validate
+from app.core import ApiResponse
 from app import vxstream, db
 from app.models import Permission, Sample
-from app.api.decorators import json_response, permission_required
+from app.api.decorators import permission_required
 from app.api.analysis.vxstream import _state_to_name, SUCCESS
 from app.api.analysis.vxstream import _submit_to_vxstream
 from app.cp import cp
 
 
 @cp.route('/analysis/vxstream', methods=['POST', 'PUT'])
-@json_response
 @permission_required(Permission.SUBMITSAMPLE)
 def add_cp_vxstream_analysis():
     """Submit samples to the VxStream Sandbox
@@ -89,14 +89,13 @@ def add_cp_vxstream_analysis():
             if resp['response_code'] != 0:
                 current_app.log.debug(resp)
 
-    return {
+    return ApiResponse({
         'statuses': statuses,
         'message': 'Your files have been submitted for dynamic analysis'
-    }, 202
+    }, 202)
 
 
 @cp.route('/analysis/vxstream/environments')
-@json_response
 def get_cp_vxstream_environments():
     """Returns a list of available VxStream Sandbox environments
 
@@ -158,11 +157,10 @@ def get_cp_vxstream_environments():
     envs = []
     for id, env in st['response']['environmentList'].items():
         envs.append({'id': int(id), 'name': env})
-    return {'environments': sorted(envs, key=lambda i: i['id'])}
+    return ApiResponse({'environments': sorted(envs, key=lambda i: i['id'])})
 
 
 @cp.route('/analysis/vxstream/<string:sha256>/<envid>', methods=['GET'])
-@json_response
 def get_cp_vxstream_analysis(sha256, envid):
     """Return VxStream Sandbox dynamic analysis for sample identified by
         ``sha256``, running in ``envid``.
@@ -271,25 +269,25 @@ def get_cp_vxstream_analysis(sha256, envid):
     if status and state['response']['state'] == _state_to_name[SUCCESS]:
         params = {'type': 'json', 'environmentId': envid}
         vx = vxstream.api.get('summary/{}'.format(sha256), params=params)
-        return vx
+        return ApiResponse(vx)
     else:
         state['response']['environmentId'] = envid
-        return state
+        return ApiResponse(state)
 
 
-@cp.route('/analysis/vxstream/report', defaults={'type': 'html'})
-@cp.route('/analysis/vxstream/report/<string:sha256>/<envid>/<type>',
+@cp.route('/analysis/vxstream/report', defaults={'type_': 'html'})
+@cp.route('/analysis/vxstream/report/<string:sha256>/<envid>/<type_>',
           methods=['GET'])
-def get_cp_vxstream_report(sha256, envid, type):
+def get_cp_vxstream_report(sha256, envid, type_):
     # XML, HTML, BIN and PCAP are GZipped
     Sample.query.filter_by(sha256=sha256, user_id=g.user.id).first_or_404()
     headers = {
         'Accept': 'text/html',
         'User-Agent': 'VxStream Sandbox API Client'}
-    params = {'type': type, 'environmentId': envid}
+    params = {'type': type_, 'environmentId': envid}
     vx = vxstream.api.get('result/{}'.format(sha256),
                           params=params, headers=headers)
-    if type in ['xml', 'html', 'bin', 'pcap']:
+    if type_ in ['xml', 'html', 'bin', 'pcap']:
         return gzip.decompress(vx)
     return vx
 
@@ -314,7 +312,6 @@ def get_cp_vxstream_download(sha256, eid, ftype):
 
 @cp.route('/analysis/vxstream-url', methods=['POST', 'PUT'])
 @validate('analysis', 'add_vxstream_url_analysis')
-@json_response
 def add_cp_vxstream_url_analysis():
     """Submit URLs for scanning to VxStream Sandbox.
     Also accepts :http:method:`put`.
@@ -393,7 +390,7 @@ def add_cp_vxstream_url_analysis():
                       md5='N/A', sha1='N/A', sha512='N/A', ctph='N/A')
         db.session.add(surl)
     db.session.commit()
-    return {
+    return ApiResponse({
         'statuses': statuses,
         'message': 'Your URLs have been submitted for dynamic analysis'
-    }, 202
+    }, 202)

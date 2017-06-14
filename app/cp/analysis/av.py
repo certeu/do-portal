@@ -5,15 +5,14 @@
 """
 import json
 from flask import request, current_app, g
+from app.core import ApiResponse
 from app.cp import cp
 from app.models import Report, Sample
-from app.api.decorators import json_response
 from app.tasks import analysis
 from app.utils.avscanlib import Scanner
 
 
 @cp.route('/analysis/av/<string:sha256>', methods=['GET'])
-@json_response
 def get_cp_av_scan(sha256):
     """Return last antivirus scan report for sample identified by its SHA256.
 
@@ -62,11 +61,10 @@ def get_cp_av_scan(sha256):
     serialized = report.serialize()
     if 'report' in serialized:
         serialized['report_parsed'] = json.loads(serialized['report'])
-    return serialized
+    return ApiResponse(serialized)
 
 
 @cp.route('/analysis/av', methods=['POST', 'PUT'])
-@json_response
 def add_cp_av_scan():
     """Submit files for antivirus scanning.
 
@@ -144,14 +142,13 @@ def add_cp_av_scan():
                 analysis.multiavscan.delay(child.sha256)
         except AttributeError as ae:
             current_app.log.info(ae)
-    return {
+    return ApiResponse({
         'files': request.json['files'],
         'message': 'Your files have been submitted for AV scanning'
-    }, 202
+    }, 202)
 
 
 @cp.route('/analysis/av/engines')
-@json_response
 def get_cp_av_engines():
     """Return the list of active AV engines
 
@@ -190,4 +187,4 @@ def get_cp_av_engines():
     :status 400: Bad request
     """
     av = Scanner(current_app.config['AVSCAN_CONFIG'])
-    return {'engines': av.engines}
+    return ApiResponse({'engines': av.engines})

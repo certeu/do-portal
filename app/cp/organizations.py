@@ -1,13 +1,13 @@
 from flask import g, request
 from flask_jsonschema import validate
+from app.core import ApiResponse
 from app import db
 from app.models import Organization, Permission, ContactEmail, Email
-from app.api.decorators import json_response, permission_required
+from app.api.decorators import permission_required
 from . import cp
 
 
 @cp.route('/organizations', methods=['GET'])
-@json_response
 @permission_required(Permission.ORGADMIN)
 def get_cp_organization():
     """Return current_user's organization
@@ -91,12 +91,11 @@ def get_cp_organization():
     """
     org_id = g.user.organization_id or 0
     o = Organization.query.get_or_404(org_id)
-    return o.serialize()
+    return ApiResponse(o.serialize())
 
 
 @cp.route('/organizations', methods=['PUT', 'POST'])
 @validate('organizations', 'update_organization')
-@json_response
 @permission_required(Permission.ORGADMIN)
 def update_cp_organization():
     """Update organization details
@@ -213,4 +212,4 @@ def update_cp_organization():
 
     db.session.add(o)
     db.session.commit()
-    return {'message': 'Organization saved'}
+    return ApiResponse({'message': 'Organization saved'})

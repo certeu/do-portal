@@ -8,13 +8,12 @@
 """
 import os
 from app import gpg
+from app.core import ApiResponse, ApiException
 from app.tasks import send_to_ks
 from flask import current_app, request
 from flask_jsonschema import validate
 from werkzeug.utils import secure_filename
 from . import api
-from .decorators import json_response
-from .errors import bad_request
 
 HTTP_METHODS = [
     # RFC 2616
@@ -35,34 +34,26 @@ HTTP_METHODS = [
 
 
 @api.route('/')
-@json_response
 def api_index():
     """List available endpoints
     """
-    url_rules = []
-    for rule in current_app.url_map.iter_rules():
-        url_rules.append(rule.rule)
-    return {
-        'endpoints': list(set(url_rules))
-    }
+    url_rules = [r.rule for r in current_app.url_map.iter_rules()]
+    return ApiResponse({'endpoints': sorted(list(set(url_rules)))})
 
 
 @api.route('/teapot')
-@json_response
 def teapot():
-    return {'message': "I'm a teapot"}, 418
+    return ApiResponse({'message': "I'm a teapot"}, 418)
 
 
 @api.route('/users', methods=HTTP_METHODS)
-@json_response
 def api_honeytoken():
     # Honeytoken endpoint
-    return {'message': "No such user"}, 200
+    return ApiResponse({'message': "No such user"}, 200)
 
 
 @api.route('/submit-key', methods=['POST', 'PUT'])
 @validate('gnupg', 'submit_key')
-@json_response
 def submit_gpg_key():
     """Submit GPG key to CERT-EU keyserver
     Keys are send to the first server from the GPG_KEYSERVERS configuration
@@ -112,16 +103,15 @@ def submit_gpg_key():
         send_to_ks.delay(
             current_app.config['GPG_KEYSERVERS'][0], result.fingerprints
         )
-        return {
+        return ApiResponse({
             'message': 'Key saved',
-            'fingerprints': [f for f in result.fingerprints]
-        }, 201
+            'fingerprints': [f for f in result.fingerprints]},
+            201)
     else:
-        return bad_request('The PGP Key could not be imported')
+        raise ApiException('The PGP Key could not be imported')
 
 
 @api.route('/upload', methods=['POST'])
-@json_response
 def upload():
     """Upload files. This endpoint is used to upload "trusted" files;
     E.i. files created by CERT-EU
@@ -172,14 +162,13 @@ def upload():
         filename = secure_filename(file.filename)
         file.save(os.path.join(current_app.config['APP_UPLOADS'], filename))
         uploaded_files.append(filename)
-    return {
+    return ApiResponse({
         'message': 'Files uploaded',
         'files': uploaded_files
-    }, 201
+    }, 201)
 
 
 @api.route('/search-keys', methods=['POST'])
-@json_response
 def search_public_ks(email=None):
     """Search GPG keys on public keyserver pool.
     The keysever pool is the second server from the GPG_KEYSERVERS
@@ -246,12 +235,11 @@ def search_public_ks(email=None):
     keys = gpg.gnupg.search_keys(
         email, current_app.config['GPG_KEYSERVERS'][1])
     if not keys:
-        return {'message': 'No keys found'}, 404
-    return {'keys': keys}
+        raise ApiException('No keys found', 404)
+    return ApiResponse({'keys': keys})
 
 
 @api.route('/import-keys', methods=['POST'])
-@json_response
 def import_keys():
     """Import GPG keys from public keyserver into local keychain
 
@@ -291,4 +279,4 @@ def import_keys():
     """
     for key in request.json['keys']:
         gpg.gnupg.recv_keys(current_app.config['GPG_KEYSERVERS'][1], key)
-    return {'message': 'Imported'}, 201
+    return ApiResponse({'message': 'Imported'}, 201)

@@ -7,16 +7,15 @@ from io import BytesIO
 from flask import request, redirect, url_for, current_app
 from flask_jsonschema import validate
 from flask_gnupg import fetch_gpg_key, get_keyid
+from app.core import ApiResponse, ApiException
 from . import api
 from .emails import send_email
-from .decorators import json_response
 from ..models import MailmanList, MailmanDomain
 from werkzeug.utils import secure_filename
 from app import gpg
 
 
 @api.route('/lists', methods=['GET'])
-@json_response
 def get_lists():
     """Return the available distribution lists
     For group details see :http:get:`/api/1.0/lists/(string:list_id)`
@@ -126,16 +125,15 @@ def get_lists():
         lists.append({
             'id': l.list_id,
             'name': l.display_name,
-            'description': l.settings['description'],
+            'description': l.settings.get('description', 'N/A'),
             'fqdn_listname': l.fqdn_listname,
             'settings': dict(l.settings),
             'members': members
         })
-    return {'lists': lists}
+    return ApiResponse({'lists': lists})
 
 
 @api.route('/lists/<string:list_id>', methods=['GET'])
-@json_response
 def get_list(list_id):
     """Return details about a distribution list identified by `list_id`
 
@@ -237,19 +235,18 @@ def get_list(list_id):
             'gpg_keyid': get_keyid(m.email)
         }
         members.append(member)
-    return {
+    return ApiResponse({
         'id': l.list_id,
         'name': l.display_name,
-        'description': l.settings['description'],
+        'description': l.settings.get('description', 'N/A'),
         'fqdn_listname': l.fqdn_listname,
         'settings': dict(l.settings),
         'members': members
-    }
+    })
 
 
 @api.route('/lists', methods=['POST', 'PUT'])
 @validate('lists', 'add_list')
-@json_response
 def add_list():
     """Add new distribution list
     See the sample response JSON object for all available settings
@@ -365,30 +362,32 @@ def add_list():
     nlist = domain.create_list(secure_filename(req['name']))
     nlist.add_owner(current_app.config['MAILMAN_ADMIN'])
     list_settings = nlist.settings
-    list_settings["description"] = req['description']
-    list_settings["advertised"] = True
-    list_settings["send_welcome_message"] = False
-    list_settings['default_member_action'] = 'accept'
-    list_settings['default_nonmember_action'] = 'accept'
-    list_settings['include_rfc2369_headers'] = False
-    list_settings['header_uri'] = ''
-    list_settings['footer_uri'] = ''
+    list_settings.update({
+        'description': req['description'],
+        'advertised': True,
+        'send_welcome_message': False,
+        'default_member_action': 'accept',
+        'default_nonmember_action': 'accept',
+        'include_rfc2369_headers': False,
+        'reply_goes_to_list': 'explicit_header',
+        'header_uri': '',
+        'footer_uri': ''
+    })
     list_settings.save()
-    return {
+    return ApiResponse({
         'list': {
             'id': nlist.list_id,
             'name': nlist.display_name,
-            'description': nlist.settings['description'],
+            'description': nlist.settings.get('description', 'N/A'),
             'fqdn_listname': nlist.fqdn_listname,
             'settings': dict(nlist.settings)
         },
         'message': 'List added'
-    }, 201, {'Location': url_for('api.get_list', list_id=nlist.list_id)}
+    }, 201, {'Location': url_for('api.get_list', list_id=nlist.list_id)})
 
 
 @api.route('/lists/<list_id>', methods=['PUT'])
 @validate('lists', 'update_list')
-@json_response
 def update_list(list_id):
     """Update distribution list settings
 
@@ -517,11 +516,10 @@ def update_list(list_id):
     list_settings['header_uri'] = ''
     list_settings['footer_uri'] = ''
     l.settings.save()
-    return {'message': 'List saved'}
+    return ApiResponse({'message': 'List saved'})
 
 
 @api.route('/lists/<list_id>/unsubscribe', methods=['PUT'])
-@json_response
 def unsubscribe_list(list_id):
     """Unsubscribe email(s) from distribution list
 
@@ -570,11 +568,10 @@ def unsubscribe_list(list_id):
         data = request.json
     for email in data:
         l.unsubscribe(email.lower())
-    return {'message': 'List saved'}
+    return ApiResponse({'message': 'List saved'})
 
 
 @api.route('/lists/<list_id>/subscribe', methods=['PUT'])
-@json_response
 def subscribe_list(list_id):
     """Subscribe email(s) to distribution list
 
@@ -620,7 +617,7 @@ def subscribe_list(list_id):
     try:
         data = [request.json['email']]
     except (KeyError, TypeError) as ke:
-        current_app.log.error(ke)
+        current_app.log.info(ke)
         data = request.json['emails']
     for email in data:
         try:
@@ -629,12 +626,11 @@ def subscribe_list(list_id):
             fetch_gpg_key(
                 email.lower(), current_app.config['GPG_KEYSERVERS'][0])
         except HTTPError as he:
-            return {'message': email.lower() + ': ' + he.msg.decode()}, he.code
-    return {'message': 'List saved'}
+            raise ApiException(email.lower() + ': ' + he.msg.decode(), he.code)
+    return ApiResponse({'message': 'List saved'})
 
 
 @api.route('/lists/<list_id>', methods=['DELETE'])
-@json_response
 def delete_list(list_id):
     """Delete distribution list
 
@@ -669,12 +665,11 @@ def delete_list(list_id):
     """
     nlist = MailmanList.get_or_404(fqdn_listname=list_id)
     nlist.delete()
-    return {'message': 'List deleted'}
+    return ApiResponse({'message': 'List deleted'})
 
 
 @api.route('/lists/post', methods=['POST'])
 @validate('lists', 'post')
-@json_response
 def post_message():
     """Send email to mailing list. If ``encrypted`` is set to ``True``
     the message body and all attachments will be encrypted with the public
@@ -740,8 +735,8 @@ def post_message():
         enc = _encrypt(BytesIO(msg['content'].encode('utf-8')),
                        list_=list_, always_trust=True)
         if not enc.ok:
-            raise ValueError('Could not encrypt message content. '
-                             'Please make sure you have all the keys.')
+            raise ApiException('Could not encrypt message content. '
+                               'Please make sure you have all the keys.')
         content = enc.data.decode()
         attachedfiles = []
         if files:
@@ -761,11 +756,10 @@ def post_message():
         'noreply@lists.cert.europa.eu', [list_.fqdn_listname], msg['subject'],
         content, attach=attachedfiles
     )
-    return {'message': 'Email has been sent.'}
+    return ApiResponse({'message': 'Email has been sent.'})
 
 
 @api.route('/lists/<list_id>/check_gpg', methods=['GET'])
-@json_response
 def check_gpg(list_id):
     """Try to encrypt a message to all members of `list_id`.
 
@@ -822,14 +816,13 @@ def check_gpg(list_id):
     l = MailmanList.get(fqdn_listname=list_id)
     emails = [m.email for m in l.members]
     if not emails:
-        return {'message': 'This list has no members.'}, 400
+        raise ApiException('This list has no members.')
     enc = gpg.gnupg.encrypt('test', emails, always_trust=True)
     if enc.ok:
-        return {'message': 'Test successful.'}, 200
+        return ApiResponse({'message': 'Test successful.'})
 
-    return {'message': 'Your message can not be encrypted for all '
-                       'the members of this list',
-            'stderr': enc.stderr}, 400
+    raise ApiException('Your message can not be encrypted for all '
+                       'the members of this list ' + enc.stderr)
 
 
 def _encrypt(fileobj=None, list_=None, **kwargs):

@@ -3,19 +3,18 @@
     ~~~~~~~~~~~~~~~~~~~~~~~
 
 """
+from sqlalchemy import or_
 import os
 from flask import request, current_app, g
-from .. import db
-from ..models import Sample
+from app.core import ApiResponse, ApiPagedResponse
+from app import db
+from app.models import Sample
 from app.tasks import analysis
 from app.utils import get_hashes
-from .decorators import json_response, paginate
 from . import api
 
 
 @api.route('/samples', methods=['GET'])
-@json_response
-@paginate
 def get_samples():
     """Return a paginated list of samples
 
@@ -82,13 +81,13 @@ def get_samples():
     :status 200: Files found
     :status 404: Resource not found
     """
-    return Sample.query
+    return ApiPagedResponse(Sample.query)
 
 
-@api.route('/samples/<string:sha256>', methods=['GET'])
-@json_response
-def get_sample(sha256):
-    """Return samples identified by `sha256`
+@api.route('/samples/<string:digest>', methods=['GET'])
+def get_sample(digest):
+    """Return samples identified by its digest.
+    The digest can be: `md5`, `sha1`, `sha256`.
 
     **Example request**:
 
@@ -113,13 +112,15 @@ def get_sample(sha256):
           "sha256": "1eedab2b09a4bf6c87b273305c096fa2f597ff9e4bdd39bc4594d8..."
         }
 
-    :param sha256: SHA-256 of file
+    :param digest: MD5, SHA1 or SHA256 of file
 
     :reqheader Accept: Content type(s) accepted by the client
     :resheader Content-Type: this depends on `Accept` header or request
 
     :>jsonarr integer id: Sample unique ID
     :>jsonarr string created: Time of upload
+    :>jsonarr string md5: MD5 of file
+    :>jsonarr string sha1: SHA1 of file
     :>jsonarr string sha256: SHA256 of file
     :>jsonarr string ctph: CTPH (a.k.a. fuzzy hash) of file
     :>jsonarr string filename: Filename (as provided by the client)
@@ -127,12 +128,14 @@ def get_sample(sha256):
     :status 200: Returns sample details object
     :status 404: Resource not found
     """
-    i = Sample.query.filter_by(sha256=sha256).first_or_404()
-    return i.serialize()
+    _cond = or_(Sample.md5 == digest,
+                Sample.sha1 == digest,
+                Sample.sha256 == digest)
+    i = Sample.query.filter(_cond).first_or_404()
+    return ApiResponse(i.serialize())
 
 
 @api.route('/samples', methods=['POST', 'PUT'])
-@json_response
 def add_sample():
     """Upload untrusted files, E.i. malware samples, files for analysis.
 
@@ -215,7 +218,7 @@ def add_sample():
             db.session.flush()
             current_app.log.error(e.args[0])
         uploaded_samples.append(s.serialize())
-    return {
+    return ApiResponse({
         'message': 'Files uploaded',
         'files': uploaded_samples
-    }, 201
+    }, 201)

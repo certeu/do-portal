@@ -5,6 +5,15 @@
           Add vulnerability
       </a>
   </h3>
+  <div class="show-grid" ng-show="!!vulnerabilities.length">
+      <div class="input-group">
+          <input type="text" ng-model="search.$" placeholder="Filter by anything" class="form-control" aria-describedby="strict-addon">
+          <span class="input-group-addon" id="strict-addon">
+              <input type="checkbox" ng-model="strict"> Strict
+          </span>
+      </div>
+  </div>
+
   <table class="table table-condensed table-striped" ng-show="!!vulnerabilities.length">
       <colgroup>
         <col width="2%" />
@@ -13,7 +22,6 @@
         <col width="5%" />
         <col width="10%" />
         <col width="40%" />
-        <col width="5%" />
         <col width="5%" />
         <col width="5%" />
         <col width="5%" />
@@ -28,7 +36,6 @@
       <th>PoC</th>
       <th>RTIR #</th>
       <th class="text-center">Patched</th>
-      <th class="text-center">Published</th>
       <th class="text-right">Actions</th>
     </tr>
     </thead>
@@ -45,7 +52,6 @@
         <span ng-show="!v.patched">NO</span>
         {{ v.patched | date}}
       </td>
-      <td>{{ v.published }}</td>
 
         <td class="text-right" nowrap>
             <button ui-sref="vuln-edit({id: v.id})"
@@ -56,12 +62,16 @@
                     type="submit" class="btn btn-default">
                 <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
             </button>
+              <button ng-if="v.scanable" ng-click="testVulnerability({id: v.id})" title="Test"
+                      type="submit" class="btn btn-default">
+                  <span class="glyphicon glyphicon-screenshot" aria-hidden="true"></span>
+              </button>
+              <button ng-click="changestatusVulnerability({id: v.id})" title="Change Status (patched/!patched)"
+                      type="submit" class="btn btn-default">
+                  <span class="glyphicon glyphicon-tent" aria-hidden="true"></span>
+              </button>
         </td>
     </tr>
     </tbody>
   </table>
-  <uib-pagination total-items="totalItems" ng-change="pageChanged()" ng-show="!!vulnerabilities.length"
-                  ng-model="currentPage" items-per-page="20"
-                  class="pagination-sm" boundary-links="true" rotate="false">
-  </uib-pagination>
 </div>
