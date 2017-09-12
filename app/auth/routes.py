@@ -298,7 +298,6 @@ def register():
                'auth/email/activate_account', user=user,
                webroot=current_app.config['CP_WEB_ROOT'],
                token=activation_token, expiry=expiry / 60)
-    current_app.log.debug(activation_token)
     msg = 'User registered. An activation email was sent to {}'
     return ApiResponse({'message': msg.format(user.email)}, 201)
 
