@@ -3,7 +3,6 @@ import random
 import binascii
 import pyqrcode
 from io import BytesIO
-from urllib.parse import urlparse
 from flask import request, current_app, render_template
 from flask import flash, redirect, url_for, session
 from flask_login import login_user, logout_user, current_user, login_required
@@ -81,9 +80,8 @@ def login():
     password = request.json.get('password')
 
     if email and password:
-        cp_host = request.headers.get('Host', None)
-        o = urlparse(current_app.config['CP_WEB_ROOT'])
-        if cp_host == o.netloc:
+        cp_host = request.environ.get('HTTP_HOST', None)
+        if cp_host.startswith('cp.'):
             user, authenticated = User.authenticate(email, password)
             if user and authenticated:
                 if user.otp_enabled:
