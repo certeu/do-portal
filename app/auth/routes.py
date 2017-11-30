@@ -292,7 +292,7 @@ def register():
         raise e
     expiry = 72 * 3600
     activation_token = user.generate_reset_token(expiry)
-    send_email('You account details', [user.email],
+    send_email('Your account details', [user.email],
                'auth/email/activate_account', user=user,
                webroot=current_app.config['CP_WEB_ROOT'],
                token=activation_token, expiry=expiry / 60)
@@ -355,7 +355,7 @@ def unregister():
     db.session.add(eml)
 
     user = User.query.filter_by(email=request.json['email']).first()
-    send_email('You account details', [user.email],
+    send_email('Your account details', [user.email],
                'auth/email/deactivate_account', user=user)
     notify = user.email
     User.query.filter_by(email=request.json['email']).delete()
