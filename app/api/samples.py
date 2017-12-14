@@ -5,7 +5,7 @@
 """
 from sqlalchemy import or_
 import os
-from flask import request, current_app, g
+from flask import request, current_app, g, send_file
 from app.core import ApiResponse, ApiPagedResponse
 from app import db
 from app.models import Sample
@@ -133,6 +133,17 @@ def get_sample(digest):
                 Sample.sha256 == digest)
     i = Sample.query.filter(_cond).first_or_404()
     return ApiResponse(i.serialize())
+
+
+@api.route('/samples/<string:digest>/contents', methods=['GET'])
+def download_sample(digest):
+    _cond = or_(Sample.md5 == digest,
+                Sample.sha1 == digest,
+                Sample.sha256 == digest)
+    i = Sample.query.filter(_cond).first_or_404()
+    cfg = current_app.config
+    return send_file(os.path.join(cfg['APP_UPLOADS_SAMPLES'], i.sha256),
+                     attachment_filename=i.sha256, as_attachment=True)
 
 
 @api.route('/samples', methods=['POST', 'PUT'])
