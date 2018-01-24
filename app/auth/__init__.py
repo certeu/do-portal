@@ -26,6 +26,7 @@ def before_auth_request():
 def ldap_error(e):
     return {'message': str(e)}, 500
 
+
 app = Flask(__name__)
 app.config.from_envvar('DO_LOCAL_CONFIG')
 if 'CP_SERVER' in app.config:
@@ -33,10 +34,12 @@ if 'CP_SERVER' in app.config:
 else:
     cp_server = 'http://127.0.0.1:5002'
 
+
 @auth.after_request
-@crossdomain(origin=cp_server,
-             headers='Content-Type, Accept, Authorization, Origin, '
-                     'CP-TOTP-Required')
+@crossdomain(
+    origin=cp_server,
+    headers='Content-Type, Accept, Authorization, Origin, '
+    'CP-TOTP-Required')
 def auth_audit_log(response):
     """On deployment remove the ``crossdomain`` decorator"""
     try:

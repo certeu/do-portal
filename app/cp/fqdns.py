@@ -216,10 +216,14 @@ def add_fqdn():
     f.organization_id = g.user.organization_id or 0
     db.session.add(f)
     db.session.commit()
-    return ApiResponse(
-        {'fqdn': f.serialize(), 'message': 'Fqdn added'},
-        201,
-        {'Location': url_for('api.get_fqdn_by_name', fqdn=f.fqdn)})
+    return ApiResponse({
+        'fqdn': f.serialize(),
+        'message': 'Fqdn added'
+    }, 201, {
+        'Location': url_for('api.get_fqdn_by_name', fqdn=f.fqdn)
+    })
+
+
 # new Api method
 #    return {'fqdn': f.serialize(), 'message': 'Fqdn added'}, 201, \
 #           {'Location': url_for('cp.get_fqdn_by_name', fqdn=f.fqdn)}
@@ -273,8 +277,7 @@ def update_fqdn(fqdn_id):
     """
     f = Fqdn.query.filter(
         Fqdn.id == fqdn_id,
-        Fqdn.organization_id == g.user.organization_id
-    ).first()
+        Fqdn.organization_id == g.user.organization_id).first()
     if not f:
         return redirect(url_for('cp.add_fqdn'))
     f.from_json(request.json)
@@ -319,8 +322,7 @@ def delete_fqdn(fqdn_id):
     """
     f = Fqdn.query.filter(
         Fqdn.id == fqdn_id,
-        Fqdn.organization_id == g.user.organization_id
-    ).first_or_404()
+        Fqdn.organization_id == g.user.organization_id).first_or_404()
     f.deleted = 1
     db.session.add(f)
     db.session.commit()

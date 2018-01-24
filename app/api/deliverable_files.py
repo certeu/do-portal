@@ -2,7 +2,7 @@ import os
 from flask import request, send_file, current_app
 from app.core import ApiResponse, ApiPagedResponse
 from . import api
-from ..import db
+from .. import db
 from ..models import DeliverableFile, Permission
 from .decorators import permission_required
 from flask_jsonschema import validate
@@ -155,8 +155,10 @@ def download_file(file_id):
     """
     dfile = DeliverableFile.query.filter_by(id=file_id).first_or_404()
     cfg = current_app.config
-    return send_file(os.path.join(cfg['APP_UPLOADS'], dfile.name),
-                     attachment_filename=dfile.name, as_attachment=True)
+    return send_file(
+        os.path.join(cfg['APP_UPLOADS'], dfile.name),
+        attachment_filename=dfile.name,
+        as_attachment=True)
 
 
 @api.route('/files', methods=['POST', 'PUT'])
@@ -256,8 +258,7 @@ def delete_file(file_id):
     :status 404: File was not found
     """
     g = DeliverableFile.query.filter(
-        DeliverableFile.id == file_id
-    ).first_or_404()
+        DeliverableFile.id == file_id).first_or_404()
 
     g.deleted = 1
     db.session.add(g)

@@ -1,7 +1,8 @@
-from flask import g, request, abort, url_for
+from flask import g, request, redirect, abort, url_for
 from flask_jsonschema import validate
 from app import db
-from app.models import User, OrganizationMembership, Organization, MembershipRole
+from app.models import User, OrganizationMembership, Organization
+from app.models import MembershipRole
 from app.api.decorators import json_response
 from . import cp
 
@@ -133,6 +134,7 @@ def get_cp_user(user_id):
     if not g.user.may_handle_user(user):
         abort(403)
     return user.serialize()
+
 
 @cp.route('/users/<int:user_id>/memberships', methods=['GET'])
 @json_response
@@ -323,15 +325,18 @@ def add_cp_user():
     try:
         user = User.fromdict(request.json['user'])
     except AttributeError as ae:
-        return {'message': 'Attribute error. Invalid email, phone or mobile?' + str(ae) ,}, 422, {}
+        return {
+            'message':
+            'Attribute error. Invalid email, phone or mobile?' + str(ae),
+        }, 422, {}
 
     membership = OrganizationMembership.fromdict(
-                    request.json['organization_membership'])
+        request.json['organization_membership'])
 
     # The role and organization must exist and the current user must be able to
     # admin the organization.
 
-    role = MembershipRole.query.get_or_404(membership.membership_role_id)
+    MembershipRole.query.get_or_404(membership.membership_role_id)
     org = Organization.query.get_or_404(membership.organization_id)
     if not g.user.may_handle_organization(org):
         abort(403)
@@ -408,9 +413,7 @@ def update_cp_user(user_id):
     :status 400: Bad request
     :status 422: Validation error
     """
-    user = User.query.filter(
-        User.id == user_id
-    ).first()
+    user = User.query.filter(User.id == user_id).first()
     if not user:
         return redirect(url_for('cp.add_cp_user'))
     if not g.user.may_handle_user(user):
@@ -419,7 +422,9 @@ def update_cp_user(user_id):
     try:
         user.from_json(request.json)
     except AttributeError:
-        return {'message': 'Attribute error. Invalid email, phone or mobile?',}, 422, {}
+        return {
+            'message': 'Attribute error. Invalid email, phone or mobile?',
+        }, 422, {}
 
     try:
         if 'password' in request.json:
@@ -468,9 +473,7 @@ def delete_cp_user(user_id):
     # The user can't delete himself
     if user_id == g.user.id:
         abort(403)
-    user = User.query.filter(
-        User.id == user_id
-    ).first_or_404()
+    user = User.query.filter(User.id == user_id).first_or_404()
     if not g.user.may_handle_user(user):
         abort(403)
 

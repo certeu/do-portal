@@ -178,11 +178,12 @@ def add_cp_analysis():
             analysis.static.delay(f['sha256'])
             try:
                 for child in s.children:
-                    analysis.static.apply_async(args=[child.sha256],
-                                                countdown=1)
+                    analysis.static.apply_async(
+                        args=[child.sha256], countdown=1)
             except AttributeError as ae:
                 current_app.log.error(ae)
-    return ApiResponse({
-        'files': request.json['files'],
-        'message': 'Your files have been submitted for static analysis'
-    }, 202)
+    return ApiResponse(
+        {
+            'files': request.json['files'],
+            'message': 'Your files have been submitted for static analysis'
+        }, 202)

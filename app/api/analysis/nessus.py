@@ -89,10 +89,11 @@ def add_nessus_scan():
     for f in request.json['resource']:
         nessus.api.post('scans', data={'resource': f, 'uuid': scan_uuid})
         pass
-    return ApiResponse({
-        'files': request.json['resource'],
-        'message': 'The resources have been submitted for scanning'
-    }, 202)
+    return ApiResponse(
+        {
+            'files': request.json['resource'],
+            'message': 'The resources have been submitted for scanning'
+        }, 202)
 
 
 @api.route('/analysis/nessus/environments')

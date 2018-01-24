@@ -48,10 +48,8 @@ def preprocess(sample):
     :param sample: :class:`~app.models.Sample`
     :return:
     """
-    hash_path = os.path.join(
-        current_app.config['APP_UPLOADS_SAMPLES'],
-        sample.sha256
-    )
+    hash_path = os.path.join(current_app.config['APP_UPLOADS_SAMPLES'],
+                             sample.sha256)
     if zipfile.is_zipfile(hash_path):
         mt = magic.from_file(hash_path, mime=True)
         if mt in skip_mimes:
@@ -65,19 +63,23 @@ def preprocess(sample):
                 with popen('7z', 'e', '-so', pwd, hash_path) as zproc:
                     buf, stderr = zproc.communicate()
             else:
-                buf = zfile.read(zipfo,
-                                 pwd=bytes(cfg['INFECTED_PASSWD'], 'utf-8'))
+                buf = zfile.read(
+                    zipfo, pwd=bytes(cfg['INFECTED_PASSWD'], 'utf-8'))
             digests = get_hashes(buf)
             hash_path = os.path.join(cfg['APP_UPLOADS_SAMPLES'],
                                      digests.sha256)
             if not os.path.isfile(hash_path):
                 with open(hash_path, 'wb') as wf:
                     wf.write(buf)
-            s = Sample(user_id=sample.user_id, filename=zipfo,
-                       parent_id=sample.id,
-                       md5=digests.md5, sha1=digests.sha1,
-                       sha256=digests.sha256, sha512=digests.sha512,
-                       ctph=digests.ctph)
+            s = Sample(
+                user_id=sample.user_id,
+                filename=zipfo,
+                parent_id=sample.id,
+                md5=digests.md5,
+                sha1=digests.sha1,
+                sha256=digests.sha256,
+                sha512=digests.sha512,
+                ctph=digests.ctph)
             db.session.add(s)
             db.session.commit()
 
@@ -119,8 +121,8 @@ def static(sha256):
         stdout, stderr = trid_proc.communicate()
         tr_raw = stdout.decode('utf-8')
         results = re.findall('(.+%) \(([A-Z\.]+)\) (.+)', tr_raw)
-        static_report['trID'] = list(map(
-            lambda n: dict(TRID._make(n)._asdict()), results))
+        static_report['trID'] = list(
+            map(lambda n: dict(TRID._make(n)._asdict()), results))
 
     # current_app.log.debug('Raw report: {}'.format(static_report))
 
@@ -135,7 +137,7 @@ def static(sha256):
 
     # with popen('ldd', file) as ldd_proc:
     #     stdout, stderr = ldd_proc.communicate()
-        #: do something with ldd
+    #: do something with ldd
 
     # report_fn = '{}_{}.json'.format(sha256, random_ascii(10))
     # report_path = os.path.join(
@@ -148,8 +150,8 @@ def static(sha256):
     #     db.session.add(analyzed)
     #     db.session.commit()
 
-    analyzed.reports.append(Report(
-        type_id=1, report=json.dumps(static_report)))
+    analyzed.reports.append(
+        Report(type_id=1, report=json.dumps(static_report)))
     db.session.add(analyzed)
     db.session.commit()
 

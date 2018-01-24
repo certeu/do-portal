@@ -85,10 +85,7 @@ def add_email():
 @validate('emails', 'update_email')
 @json_response
 def update_email(email_id):
-    e = Email.query.filter(
-        Email.id == email_id,
-        Email.deleted == 0
-    ).first()
+    e = Email.query.filter(Email.id == email_id, Email.deleted == 0).first()
     if not e:
         return redirect(url_for('api.add_email'))
     e.from_json(request.json)
@@ -100,10 +97,7 @@ def update_email(email_id):
 @api.route('/emails/<int:email_id>', methods=['DELETE'])
 @json_response
 def delete_email(email_id):
-    e = Email.query.filter(
-        Email.id == email_id,
-        Email.deleted == 0
-    ).first()
+    e = Email.query.filter(Email.id == email_id, Email.deleted == 0).first()
     if not e:
         return {'message': 'No such email'}, 404
     e.deleted = 1
@@ -112,7 +106,11 @@ def delete_email(email_id):
     return {'message': 'Email deleted'}
 
 
-def send_email(sender, recipients, subject, text_body, html_body=None,
+def send_email(sender,
+               recipients,
+               subject,
+               text_body,
+               html_body=None,
                attach=None):
     msg = Message(subject, reply_to=sender, recipients=recipients)
     msg.body = text_body

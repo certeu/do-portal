@@ -1,4 +1,4 @@
-from flask import g, request, abort, url_for
+from flask import g, request, abort, redirect, url_for
 from flask_jsonschema import validate
 from app import db
 from app.models import OrganizationMembership, Organization, User
@@ -60,7 +60,8 @@ def get_cp_organization_memberships():
     :reqheader Accept: Content type(s) accepted by the client
     :resheader Content-Type: This depends on `Accept` header or request
 
-    :>json array organizations: List of available organization membership objects
+    :>json array organizations: List of available organization
+         membership objects
 
     For organization membership details:
     :http:get:`/api/1.0/organization_memberships/(int:membership_id)`
@@ -76,7 +77,12 @@ def get_cp_organization_memberships():
     """
     memberships = g.user.get_organization_memberships()
     # memberships = [ m for m in memberships if m.deleted != 1 ]
-    return {'organization_memberships': [m.serialize(exclude=('coc', 'pgp_key', 'smime')) for m in memberships]}
+    return {
+        'organization_memberships': [
+            m.serialize(exclude=('coc', 'pgp_key', 'smime'))
+            for m in memberships
+        ]
+    }
     # return {'organization_memberships': [m.serialize() for m in memberships]}
 
 
@@ -153,6 +159,7 @@ def get_cp_organization_membership(membership_id):
     membership = OrganizationMembership.query.get_or_404(membership_id)
     check_membership_permissions(membership)
     return membership.serialize()
+
 
 @cp.route('/organization_memberships', methods=['POST'])
 @validate('organization_memberships', 'add_cp_organization_membership')
@@ -245,7 +252,9 @@ def add_cp_organization_membership():
     try:
         membership = OrganizationMembership.fromdict(request.json)
     except AttributeError:
-        return {'message': 'Attribute error. Invalid email, phone or mobile?',}, 422, {}
+        return {
+            'message': 'Attribute error. Invalid email, phone or mobile?',
+        }, 422, {}
 
     check_membership_permissions(membership)
     db.session.add(membership)
@@ -336,8 +345,7 @@ def update_cp_organization_membership(membership_id):
     :status 422: Validation error
     """
     membership = OrganizationMembership.query.filter(
-        OrganizationMembership.id == membership_id
-    ).first()
+        OrganizationMembership.id == membership_id).first()
     if not membership:
         return redirect(url_for('cp.add_cp_organization_membership'))
     check_membership_permissions(membership)
@@ -345,7 +353,9 @@ def update_cp_organization_membership(membership_id):
     try:
         membership.from_json(request.json)
     except AttributeError:
-        return {'message': 'Attribute error. Invalid email, phone or mobile?',}, 422, {}
+        return {
+            'message': 'Attribute error. Invalid email, phone or mobile?',
+        }, 422, {}
 
     db.session.add(membership)
     db.session.commit()
@@ -387,8 +397,7 @@ def delete_cp_organization_membership(membership_id):
     :status 404: Organization membership was not found
     """
     membership = OrganizationMembership.query.filter(
-        OrganizationMembership.id == membership_id
-    ).first_or_404()
+        OrganizationMembership.id == membership_id).first_or_404()
     membership.mark_as_deleted()
     db.session.add(membership)
     db.session.commit()
@@ -405,4 +414,3 @@ def check_membership_permissions(membership):
         abort(403)
     if not g.user.may_handle_user(user):
         abort(403)
-

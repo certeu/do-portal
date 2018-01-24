@@ -89,10 +89,11 @@ def add_cp_vxstream_analysis():
             if resp['response_code'] != 0:
                 current_app.log.debug(resp)
 
-    return ApiResponse({
-        'statuses': statuses,
-        'message': 'Your files have been submitted for dynamic analysis'
-    }, 202)
+    return ApiResponse(
+        {
+            'statuses': statuses,
+            'message': 'Your files have been submitted for dynamic analysis'
+        }, 202)
 
 
 @cp.route('/analysis/vxstream/environments')
@@ -263,8 +264,9 @@ def get_cp_vxstream_analysis(sha256, envid):
     """
     Sample.query.filter_by(sha256=sha256, user_id=g.user.id).first_or_404()
     state = vxstream.api.get(
-        'state/{}'.format(sha256),
-        params={'environmentId': envid})
+        'state/{}'.format(sha256), params={
+            'environmentId': envid
+        })
     status = state['response_code'] == 0
     if status and state['response']['state'] == _state_to_name[SUCCESS]:
         params = {'type': 'json', 'environmentId': envid}
@@ -276,38 +278,43 @@ def get_cp_vxstream_analysis(sha256, envid):
 
 
 @cp.route('/analysis/vxstream/report', defaults={'type_': 'html'})
-@cp.route('/analysis/vxstream/report/<string:sha256>/<envid>/<type_>',
-          methods=['GET'])
+@cp.route(
+    '/analysis/vxstream/report/<string:sha256>/<envid>/<type_>',
+    methods=['GET'])
 def get_cp_vxstream_report(sha256, envid, type_):
     # XML, HTML, BIN and PCAP are GZipped
     Sample.query.filter_by(sha256=sha256, user_id=g.user.id).first_or_404()
     headers = {
         'Accept': 'text/html',
-        'User-Agent': 'VxStream Sandbox API Client'}
+        'User-Agent': 'VxStream Sandbox API Client'
+    }
     params = {'type': type_, 'environmentId': envid}
-    vx = vxstream.api.get('result/{}'.format(sha256),
-                          params=params, headers=headers)
+    vx = vxstream.api.get(
+        'result/{}'.format(sha256), params=params, headers=headers)
     if type_ in ['xml', 'html', 'bin', 'pcap']:
         return gzip.decompress(vx)
     return vx
 
 
 @cp.route('/analysis/vxstream/download', defaults={'ftype': 'bin', 'eid': 1})
-@cp.route('/analysis/vxstream/download/<string:sha256>/<eid>/<ftype>',
-          methods=['GET'])
+@cp.route(
+    '/analysis/vxstream/download/<string:sha256>/<eid>/<ftype>',
+    methods=['GET'])
 def get_cp_vxstream_download(sha256, eid, ftype):
     Sample.query.filter_by(sha256=sha256, user_id=g.user.id).first_or_404()
     headers = {
         'Accept': 'text/html',
-        'User-Agent': 'VxStream Sandbox API Client'}
+        'User-Agent': 'VxStream Sandbox API Client'
+    }
     params = {'type': ftype, 'environmentId': eid}
-    vx = vxstream.api.get('result/{}'.format(sha256),
-                          params=params, headers=headers)
+    vx = vxstream.api.get(
+        'result/{}'.format(sha256), params=params, headers=headers)
     if ftype in ['xml', 'html', 'bin', 'pcap']:
         ftype += '.gz'
-    return send_file(BytesIO(vx),
-                     attachment_filename='{}.{}'.format(sha256, ftype),
-                     as_attachment=True)
+    return send_file(
+        BytesIO(vx),
+        attachment_filename='{}.{}'.format(sha256, ftype),
+        as_attachment=True)
 
 
 @cp.route('/analysis/vxstream-url', methods=['POST', 'PUT'])
@@ -370,10 +377,7 @@ def add_cp_vxstream_url_analysis():
         for url in request.json['urls']:
             if not url.startswith('http'):
                 url = 'http://' + url
-            sdata = {
-                'environmentId': env,
-                'analyzeurl': url
-            }
+            sdata = {'environmentId': env, 'analyzeurl': url}
             headers = {
                 'User-Agent': 'VxStream Sandbox API Client',
                 'Accept': 'application/json'
@@ -386,11 +390,18 @@ def add_cp_vxstream_url_analysis():
                 current_app.log.debug(resp)
 
     for sha256, url in samples.items():
-        surl = Sample(filename=url, sha256=sha256, user_id=g.user.id,
-                      md5='N/A', sha1='N/A', sha512='N/A', ctph='N/A')
+        surl = Sample(
+            filename=url,
+            sha256=sha256,
+            user_id=g.user.id,
+            md5='N/A',
+            sha1='N/A',
+            sha512='N/A',
+            ctph='N/A')
         db.session.add(surl)
     db.session.commit()
-    return ApiResponse({
-        'statuses': statuses,
-        'message': 'Your URLs have been submitted for dynamic analysis'
-    }, 202)
+    return ApiResponse(
+        {
+            'statuses': statuses,
+            'message': 'Your URLs have been submitted for dynamic analysis'
+        }, 202)

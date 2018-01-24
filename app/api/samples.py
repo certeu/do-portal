@@ -128,8 +128,7 @@ def get_sample(digest):
     :status 200: Returns sample details object
     :status 404: Resource not found
     """
-    _cond = or_(Sample.md5 == digest,
-                Sample.sha1 == digest,
+    _cond = or_(Sample.md5 == digest, Sample.sha1 == digest,
                 Sample.sha256 == digest)
     i = Sample.query.filter(_cond).first_or_404()
     return ApiResponse(i.serialize())
@@ -137,13 +136,14 @@ def get_sample(digest):
 
 @api.route('/samples/<string:digest>/contents', methods=['GET'])
 def download_sample(digest):
-    _cond = or_(Sample.md5 == digest,
-                Sample.sha1 == digest,
+    _cond = or_(Sample.md5 == digest, Sample.sha1 == digest,
                 Sample.sha256 == digest)
     i = Sample.query.filter(_cond).first_or_404()
     cfg = current_app.config
-    return send_file(os.path.join(cfg['APP_UPLOADS_SAMPLES'], i.sha256),
-                     attachment_filename=i.sha256, as_attachment=True)
+    return send_file(
+        os.path.join(cfg['APP_UPLOADS_SAMPLES'], i.sha256),
+        attachment_filename=i.sha256,
+        as_attachment=True)
 
 
 @api.route('/samples', methods=['POST', 'PUT'])
@@ -209,17 +209,20 @@ def add_sample():
         buf = file.stream.read()
         digests = get_hashes(buf)
 
-        hash_path = os.path.join(
-            current_app.config['APP_UPLOADS_SAMPLES'],
-            digests.sha256
-        )
+        hash_path = os.path.join(current_app.config['APP_UPLOADS_SAMPLES'],
+                                 digests.sha256)
         if not os.path.isfile(hash_path):
             file.stream.seek(0)
             file.save(hash_path)
 
-        s = Sample(user_id=g.user.id, filename=file.filename, md5=digests.md5,
-                   sha1=digests.sha1, sha256=digests.sha256,
-                   sha512=digests.sha512, ctph=digests.ctph)
+        s = Sample(
+            user_id=g.user.id,
+            filename=file.filename,
+            md5=digests.md5,
+            sha1=digests.sha1,
+            sha256=digests.sha256,
+            sha512=digests.sha512,
+            ctph=digests.ctph)
         db.session.add(s)
         try:
             db.session.commit()

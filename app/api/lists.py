@@ -114,8 +114,8 @@ def get_lists():
     :status 404: Not found
     """
     lists = []
-    mailman_lists = sorted(MailmanList.query.all(),
-                           key=lambda l: l.fqdn_listname)
+    mailman_lists = sorted(
+        MailmanList.query.all(), key=lambda l: l.fqdn_listname)
     if not mailman_lists:
         return {}, 204
     for l in mailman_lists:
@@ -230,10 +230,7 @@ def get_list(list_id):
     l = MailmanList.get(fqdn_listname=list_id)
     members = []
     for m in l.members:
-        member = {
-            'email': m.email,
-            'gpg_keyid': get_keyid(m.email)
-        }
+        member = {'email': m.email, 'gpg_keyid': get_keyid(m.email)}
         members.append(member)
     return ApiResponse({
         'id': l.list_id,
@@ -357,8 +354,7 @@ def add_list():
     :status 400: Bad request
     """
     req = request.json
-    domain = MailmanDomain.get(
-        mail_host=current_app.config['MAILMAN_DOMAIN'])
+    domain = MailmanDomain.get(mail_host=current_app.config['MAILMAN_DOMAIN'])
     nlist = domain.create_list(secure_filename(req['name']))
     nlist.add_owner(current_app.config['MAILMAN_ADMIN'])
     list_settings = nlist.settings
@@ -374,16 +370,19 @@ def add_list():
         'footer_uri': ''
     })
     list_settings.save()
-    return ApiResponse({
-        'list': {
-            'id': nlist.list_id,
-            'name': nlist.display_name,
-            'description': nlist.settings.get('description', 'N/A'),
-            'fqdn_listname': nlist.fqdn_listname,
-            'settings': dict(nlist.settings)
-        },
-        'message': 'List added'
-    }, 201, {'Location': url_for('api.get_list', list_id=nlist.list_id)})
+    return ApiResponse(
+        {
+            'list': {
+                'id': nlist.list_id,
+                'name': nlist.display_name,
+                'description': nlist.settings.get('description', 'N/A'),
+                'fqdn_listname': nlist.fqdn_listname,
+                'settings': dict(nlist.settings)
+            },
+            'message': 'List added'
+        }, 201, {
+            'Location': url_for('api.get_list', list_id=nlist.list_id)
+        })
 
 
 @api.route('/lists/<list_id>', methods=['PUT'])
@@ -621,10 +620,10 @@ def subscribe_list(list_id):
         data = request.json['emails']
     for email in data:
         try:
-            l.subscribe(address=email.lower(),
-                        pre_verified=True, pre_confirmed=True)
-            fetch_gpg_key(
-                email.lower(), current_app.config['GPG_KEYSERVERS'][0])
+            l.subscribe(
+                address=email.lower(), pre_verified=True, pre_confirmed=True)
+            fetch_gpg_key(email.lower(),
+                          current_app.config['GPG_KEYSERVERS'][0])
         except HTTPError as he:
             raise ApiException(he.msg.decode(), he.code) from he
     return ApiResponse({'message': 'List saved'})
@@ -732,8 +731,10 @@ def post_message():
     encrypted = msg.get('encrypted', None)
     list_ = MailmanList.get(fqdn_listname=msg['list_id'])
     if encrypted:
-        enc = _encrypt(BytesIO(msg['content'].encode('utf-8')),
-                       list_=list_, always_trust=True)
+        enc = _encrypt(
+            BytesIO(msg['content'].encode('utf-8')),
+            list_=list_,
+            always_trust=True)
         if not enc.ok:
             raise ApiException('Could not encrypt message content. '
                                'Please make sure you have all the keys.')
@@ -741,21 +742,22 @@ def post_message():
         attachedfiles = []
         if files:
             for file in files:
-                file_path = os.path.join(
-                    current_app.config['APP_UPLOADS'], file)
+                file_path = os.path.join(current_app.config['APP_UPLOADS'],
+                                         file)
                 with open(file_path, 'rb') as fb:
                     outfile = file_path + '.asc'
-                    cipherfile = _encrypt(fb, list_, output=outfile,
-                                          always_trust=True)
+                    cipherfile = _encrypt(
+                        fb, list_, output=outfile, always_trust=True)
                     if cipherfile.ok:
                         attachedfiles.append(file + '.asc')
     else:
         content = msg['content']
         attachedfiles = files
     send_email(
-        'noreply@lists.cert.europa.eu', [list_.fqdn_listname], msg['subject'],
-        content, attach=attachedfiles
-    )
+        'noreply@lists.cert.europa.eu', [list_.fqdn_listname],
+        msg['subject'],
+        content,
+        attach=attachedfiles)
     return ApiResponse({'message': 'Email has been sent.'})
 
 

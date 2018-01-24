@@ -58,8 +58,9 @@ def get_groups():
     """
     groups = OrganizationGroup.query.filter(
         OrganizationGroup.deleted == 0).all()
-    return ApiResponse(
-        {'organization_groups': [o.serialize() for o in groups]})
+    return ApiResponse({
+        'organization_groups': [o.serialize() for o in groups]
+    })
 
 
 @api.route('/organization_groups/<int:group_id>', methods=['GET'])
@@ -163,10 +164,12 @@ def add_group():
     g = OrganizationGroup().from_json(request.json)
     db.session.add(g)
     db.session.commit()
-    return ApiResponse(
-        {'organization_group': g.serialize(), 'message': 'Group added'},
-        201,
-        {'Location': url_for('api.get_group', group_id=g.id)})
+    return ApiResponse({
+        'organization_group': g.serialize(),
+        'message': 'Group added'
+    }, 201, {
+        'Location': url_for('api.get_group', group_id=g.id)
+    })
 
 
 @api.route('/organization_groups/<int:group_id>', methods=['PUT'])
@@ -224,10 +227,8 @@ def update_group(group_id):
     :status 200: Group details were successfully updated
     :status 400: Bad request
     """
-    g = OrganizationGroup.query.filter(
-        OrganizationGroup.id == group_id,
-        OrganizationGroup.deleted == 0
-    ).first()
+    g = OrganizationGroup.query.filter(OrganizationGroup.id == group_id,
+                                       OrganizationGroup.deleted == 0).first()
     if not g:
         return redirect(url_for('api.add_group'))
     g.from_json(request.json)
@@ -273,8 +274,7 @@ def delete_group(group_id):
     """
     g = OrganizationGroup.query.filter(
         OrganizationGroup.id == group_id,
-        OrganizationGroup.deleted == 0
-    ).first_or_404()
+        OrganizationGroup.deleted == 0).first_or_404()
 
     g.deleted = 1
     db.session.add(g)

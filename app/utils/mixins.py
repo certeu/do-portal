@@ -30,8 +30,8 @@ class SerializerMixin(object):
             value = self._serialize(field.value)
             if value:
                 data[k] = value
-        extras = list(set(public).difference(
-            self._sa_instance_state.attrs.keys()))
+        extras = list(
+            set(public).difference(self._sa_instance_state.attrs.keys()))
         for e in extras:
             try:
                 data[e] = self._serialize(getattr(self, e))

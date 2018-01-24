@@ -8,7 +8,7 @@ import json
 import datetime
 from flask import Flask, Blueprint
 from flask import current_app, request, g
-from flask_login import login_required, decode_cookie
+from flask_login import login_required
 from app.utils import addslashes, _HTTP_METHOD_TO_AUDIT_MAP
 from app.api.decorators import rate_limit, crossdomain
 
@@ -23,13 +23,13 @@ from . import membership_roles, countries, organization_memberships, users  # no
 from .analysis import av, static, vxstream, fireeye  # noqa
 from . import errors  # noqa
 
-
 app = Flask(__name__)
 app.config.from_envvar('DO_LOCAL_CONFIG')
 if 'CP_SERVER' in app.config:
     cp_server = app.config['CP_SERVER']
 else:
     cp_server = 'http://127.0.0.1:5002'
+
 
 @cp.before_request
 @rate_limit(30, 1)

@@ -45,8 +45,7 @@ def get_fqdns():
     :status 200: Deliverable endpoint found, response may be empty
     :status 404: Not found
     """
-    fqdns = Fqdn.query.filter(
-        Fqdn.deleted == 0).all()
+    fqdns = Fqdn.query.filter(Fqdn.deleted == 0).all()
     return ApiResponse({'fqdns': [f.serialize() for f in fqdns]})
 
 
@@ -204,10 +203,12 @@ def add_fqdn():
     f = Fqdn().from_json(request.json)
     db.session.add(f)
     db.session.commit()
-    return ApiResponse(
-        {'fqdn': f.serialize(), 'message': 'Fqdn added'},
-        201,
-        {'Location': url_for('api.get_fqdn', fqdn_id=f.id)})
+    return ApiResponse({
+        'fqdn': f.serialize(),
+        'message': 'Fqdn added'
+    }, 201, {
+        'Location': url_for('api.get_fqdn', fqdn_id=f.id)
+    })
 
 
 @api.route('/fqdns/<int:fqdn_id>', methods=['PUT'])
@@ -258,9 +259,7 @@ def update_fqdn(fqdn_id):
     :status 200: FQDN was successfully updated
     :status 400: Bad request
     """
-    f = Fqdn.query.filter(
-        Fqdn.id == fqdn_id
-    ).first()
+    f = Fqdn.query.filter(Fqdn.id == fqdn_id).first()
     if not f:
         return redirect(url_for('api.add_fqdn'))
     f.from_json(request.json)
@@ -303,9 +302,7 @@ def delete_fqdn(fqdn_id):
     :status 200: FQDN was deleted
     :status 404: FQDN was not found
     """
-    f = Fqdn.query.filter(
-        Fqdn.id == fqdn_id
-    ).first_or_404()
+    f = Fqdn.query.filter(Fqdn.id == fqdn_id).first_or_404()
 
     f.deleted = 1
     db.session.add(f)

@@ -178,18 +178,21 @@ def add_cp_sample():
         buf = file_.stream.read()
         hashes = get_hashes(buf)
 
-        hash_path = os.path.join(
-            current_app.config['APP_UPLOADS_SAMPLES'],
-            hashes.sha256
-        )
+        hash_path = os.path.join(current_app.config['APP_UPLOADS_SAMPLES'],
+                                 hashes.sha256)
 
         if not os.path.isfile(hash_path):
             file_.stream.seek(0)
             file_.save(hash_path)
 
-        s = Sample(user_id=g.user.id, filename=file_.filename, md5=hashes.md5,
-                   sha1=hashes.sha1, sha256=hashes.sha256,
-                   sha512=hashes.sha512, ctph=hashes.ctph)
+        s = Sample(
+            user_id=g.user.id,
+            filename=file_.filename,
+            md5=hashes.md5,
+            sha1=hashes.sha1,
+            sha256=hashes.sha256,
+            sha512=hashes.sha512,
+            ctph=hashes.ctph)
         db.session.add(s)
         try:
             db.session.commit()

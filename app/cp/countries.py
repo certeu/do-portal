@@ -1,6 +1,3 @@
-from flask import g, request
-from flask_jsonschema import validate
-from app import db
 from app.models import Country
 from app.api.decorators import json_response
 from . import cp

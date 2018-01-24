@@ -139,10 +139,12 @@ def add_asn():
     a = Asn().from_json(request.json)
     db.session.add(a)
     db.session.commit()
-    return ApiResponse(
-        {'asn': a.serialize(), 'message': 'Asn added'},
-        201,
-        {'Location': url_for('api.get_asn', asn_id=a.id)})
+    return ApiResponse({
+        'asn': a.serialize(),
+        'message': 'Asn added'
+    }, 201, {
+        'Location': url_for('api.get_asn', asn_id=a.id)
+    })
 
 
 @api.route('/asns/<int:asn_id>', methods=['PUT'])
@@ -190,9 +192,7 @@ def update_asn(asn_id):
     :status 200: ASN was successfully updated
     :status 400: Bad request
     """
-    a = Asn.query.filter(
-        Asn.id == asn_id
-    ).first()
+    a = Asn.query.filter(Asn.id == asn_id).first()
     if not a:
         return redirect(url_for('api.add_asn'))
     a.from_json(request.json)
@@ -234,9 +234,7 @@ def delete_asn(asn_id):
     :status 200: ASN was deleted
     :status 404: ASN was not found
     """
-    a = Asn.query.filter(
-        Asn.id == asn_id
-    ).first_or_404()
+    a = Asn.query.filter(Asn.id == asn_id).first_or_404()
 
     a.deleted = 1
     db.session.add(a)

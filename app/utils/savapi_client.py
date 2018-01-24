@@ -56,8 +56,8 @@ class SAVAPIClient(object):
         Python expression that could be used to recreate an object with the
         same value (given an appropriate environment)
         """
-        return '%s("%s", %d)' % (self.__class__.__qualname__,
-                                 self._host, self._port)
+        return '%s("%s", %d)' % (self.__class__.__qualname__, self._host,
+                                 self._port)
 
     def __enter__(self):
         banner = self.sock.recv(20).decode('utf-8')
@@ -102,12 +102,18 @@ def main(argv=None):
         argv = sys.argv
     p = argparse.ArgumentParser(
         description='SAVAPI Client',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    p.add_argument('--savapi-host', dest='host', help='SAVAPI service host',
-                   default='127.0.0.1')
-    p.add_argument('--savapi-port', dest='port', help='SAVAPI service port',
-                   default=9999, type=int)
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    p.add_argument(
+        '--savapi-host',
+        dest='host',
+        help='SAVAPI service host',
+        default='127.0.0.1')
+    p.add_argument(
+        '--savapi-port',
+        dest='port',
+        help='SAVAPI service port',
+        default=9999,
+        type=int)
     p.add_argument('file', help='Absolute path of file')
 
     try:

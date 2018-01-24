@@ -25,7 +25,6 @@ def popen(*args, **kwargs):
 
 
 class Antivirus:
-
     def __init__(self, *args, **kwargs):
         self._results = {}
         self.result_regex = None
@@ -67,7 +66,6 @@ class Antivirus:
 
 
 class ClamAV(Antivirus):
-
     def scan(self, path):
         cs = pyclamd.ClamdUnixSocket(filename=self.socket)
         try:
@@ -81,7 +79,6 @@ class ClamAV(Antivirus):
 
 
 class ESET(Antivirus):
-
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
         self.result_regex = 'name="(.*)", threat="(.*)",'
@@ -99,7 +96,6 @@ class ESET(Antivirus):
 
 
 class WindowsDefender(Antivirus):
-
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
         self.result_regex = 'Threat (.*) identified\.'
@@ -125,7 +121,6 @@ class WindowsDefender(Antivirus):
 
 
 class FProt(Antivirus):
-
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
         self.result_regex = "\<(.*)\>\s+(.*)"
@@ -134,14 +129,12 @@ class FProt(Antivirus):
 
 
 class FSecure(Antivirus):
-
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
         self.result_regex = "(.*): Infected: (.*) \[[a-z]+\]"
 
 
 class SAVAPI(Antivirus):
-
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
         self.result_regex = "([0-9]{3}) (.*)<<<(.*);(.*);(.*)"
@@ -150,7 +143,6 @@ class SAVAPI(Antivirus):
 
 
 class DrWeb(Antivirus):
-
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
         self.result_regex = "\>{0,1}(.*) infected with (.*)"

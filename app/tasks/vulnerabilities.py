@@ -15,8 +15,7 @@ def checkall(checked_patched=False):
     for vuln in vulns:
         if vuln.scanable:
             vuln.tested = datetime.datetime.now()
-            rc, status_code = check_patched(vuln.request_method,
-                                            vuln.url,
+            rc, status_code = check_patched(vuln.request_method, vuln.url,
                                             vuln.request_data,
                                             vuln.check_string)
 
@@ -33,12 +32,13 @@ def checkall(checked_patched=False):
 
 
 def check_patched(method, url, data, check_string):
-    page = requests.request(method,
-                            url,
-                            data=data,
-                            stream=False,
-                            verify=False,
-                            proxies=current_app.config['PROXIES'])
+    page = requests.request(
+        method,
+        url,
+        data=data,
+        stream=False,
+        verify=False,
+        proxies=current_app.config['PROXIES'])
     if page.status_code != 403:
         if check_string in page.text:
             return 0, page.status_code

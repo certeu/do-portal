@@ -88,9 +88,11 @@ def login():
                 if user.otp_enabled:
                     session['cu'] = email
                     session['cpasswd'] = password
-                    return ApiResponse({'auth': 'pre-authenticated'},
-                                       200,
-                                       {'CP-TOTP-Required': user.otp_enabled})
+                    return ApiResponse({
+                        'auth': 'pre-authenticated'
+                    }, 200, {
+                        'CP-TOTP-Required': user.otp_enabled
+                    })
                 else:
                     if login_user(user, remember=True):
                         return ApiResponse({'auth': 'authenticated'})
@@ -279,8 +281,8 @@ def register():
     if org.is_sla:
         roles = Role.query.filter(db.not_(Role.permissions == 0xff)).all()
         for role in roles:
-            if ((role.permissions & Permission.SLAACTIONS) ==
-                    Permission.SLAACTIONS):
+            if ((role.permissions &
+                 Permission.SLAACTIONS) == Permission.SLAACTIONS):
                 user.role = role
                 break
     db.session.add(user)
@@ -293,10 +295,13 @@ def register():
         raise e
     expiry = 72 * 3600
     activation_token = user.generate_reset_token(expiry)
-    send_email('Your account details', [user.email],
-               'auth/email/activate_account', user=user,
-               webroot=current_app.config['CP_WEB_ROOT'],
-               token=activation_token, expiry=expiry / 60)
+    send_email(
+        'Your account details', [user.email],
+        'auth/email/activate_account',
+        user=user,
+        webroot=current_app.config['CP_WEB_ROOT'],
+        token=activation_token,
+        expiry=expiry / 60)
     msg = 'User registered. An activation email was sent to {}'
     return ApiResponse({'message': msg.format(user.email)}, 201)
 
@@ -356,8 +361,10 @@ def unregister():
     db.session.add(eml)
 
     user = User.query.filter_by(email=request.json['email']).first()
-    send_email('Your account details', [user.email],
-               'auth/email/deactivate_account', user=user)
+    send_email(
+        'Your account details', [user.email],
+        'auth/email/deactivate_account',
+        user=user)
     notify = user.email
     User.query.filter_by(email=request.json['email']).delete()
     db.session.commit()
@@ -475,6 +482,8 @@ def change_password():
         return ApiResponse({'message': 'Your password has been updated'})
     except AssertionError as ae:
         raise ApiException(ae)
+
+
 # uses new ApiException has to uses in the portal as well
 #        return {'message': str(ae)}
 #    except AttributeError as ae:
@@ -488,6 +497,7 @@ def reset_api_key():
     db.session.add(current_user)
     db.session.commit()
     return ApiResponse({'message': 'Your API key has been reset'})
+
 
 @auth.route('/lost_password', methods=['POST'])
 @validate('users', 'lost_password')
@@ -536,7 +546,9 @@ def lost_password():
     try:
         User.reset_password_send_email(request.json['email'])
     except AttributeError:
-        return {'message': 'Attribute error. Invalid email?',}, 422, {}
+        return {
+            'message': 'Attribute error. Invalid email?',
+        }, 422, {}
     return {'message': 'Password restore email sent'}, 200, {}
 
 
@@ -614,10 +626,8 @@ def do_bosh_auth():
         return {}, 503
     c = bosh_client.BOSHClient(
         current_app.config['JID'] + '/' + current_user.email.split('@')[0] +
-        '-' + str(random.choice(range(666))),
-        current_app.config['JPASS'],
-        current_app.config['BOSH_SERVICE']
-    )
+        '-' + str(random.choice(range(666))), current_app.config['JPASS'],
+        current_app.config['BOSH_SERVICE'])
     if not current_user.can(Permission.ADMINISTER):
         service_url = current_app.config['CP_BOSH_SERVICE']
         rooms = current_app.config['CP_ROOMS']
@@ -682,10 +692,11 @@ def _save_ldap_user(ldap_user):
 
     :param ldap_user: User information as returned by the LDAP server
     """
-    u = User(name=ldap_user['name'][0],
-             email=ldap_user['userPrincipalName'][0],
-             is_admin=True,
-             _password='LDAP')
+    u = User(
+        name=ldap_user['name'][0],
+        email=ldap_user['userPrincipalName'][0],
+        is_admin=True,
+        _password='LDAP')
     u.api_key = u.generate_api_key()
     if u.role is None:
         u.role = Role.query.filter_by(permissions=0xff).first()

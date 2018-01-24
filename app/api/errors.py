@@ -66,11 +66,14 @@ def not_allowed(message):
 
 def not_acceptable():
     response = jsonify({
-        'status': 'not acceptable',
-        'message': 'The resource identified by the request is only capable of '
-                   'generating response entities which have content '
-                   'characteristics not acceptable according to the accept '
-                   'headers sent in the request.'})
+        'status':
+        'not acceptable',
+        'message':
+        'The resource identified by the request is only capable of '
+        'generating response entities which have content '
+        'characteristics not acceptable according to the accept '
+        'headers sent in the request.'
+    })
     response.status_code = 406
     return response
 
@@ -82,15 +85,16 @@ def precondition_failed():
 
 
 def too_many_requests(message, limit=None):
-    response = jsonify({'status': 429, 'error': 'too many requests',
-                        'message': message})
+    response = jsonify({
+        'status': 429,
+        'error': 'too many requests',
+        'message': message
+    })
     response.status_code = 429
     return response
 
 
-_STATUS_CODES_ = {
-    404: not_found
-}
+_STATUS_CODES_ = {404: not_found}
 
 
 @api.errorhandler(ValueError)

@@ -10,23 +10,24 @@ class LoginForm(Form):
     """
 
     email = StringField(
-        'Email',
-        validators=[DataRequired(), Length(1, 64), Email()]
-    )
+        'Email', validators=[DataRequired(),
+                             Length(1, 64),
+                             Email()])
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Login')
 
 
 class PasswordResetForm(Form):
     email = StringField(
-        'Email',
-        validators=[DataRequired(), Length(1, 64), Email()]
-    )
+        'Email', validators=[DataRequired(),
+                             Length(1, 64),
+                             Email()])
     password = PasswordField(
         'New Password',
-        validators=[DataRequired(), EqualTo('confirm_password',
-                                            message='Passwords must match')]
-    )
+        validators=[
+            DataRequired(),
+            EqualTo('confirm_password', message='Passwords must match')
+        ])
     confirm_password = PasswordField(
         'Confirm password', validators=[DataRequired()])
     submit = SubmitField('Reset Password')
@@ -39,10 +40,11 @@ class PasswordResetForm(Form):
 class SetPasswordForm(Form):
     password = PasswordField(
         'New Password',
-        validators=[DataRequired(), Length(12),
-                    EqualTo('confirm_password',
-                            message='Passwords must match')]
-    )
+        validators=[
+            DataRequired(),
+            Length(12),
+            EqualTo('confirm_password', message='Passwords must match')
+        ])
     confirm_password = PasswordField(
         'Confirm password', validators=[DataRequired()])
     submit = SubmitField('Set Password')

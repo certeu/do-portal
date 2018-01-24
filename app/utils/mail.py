@@ -16,11 +16,13 @@ def send_email(subject, recipients, template, **kwargs):
     if not isinstance(recipients, list):
         recipients = list(recipients)
 
-    msg = Message(subject, reply_to=current_app.config['MAIL_DEFAULT_SENDER'],
-                  recipients=recipients)
+    msg = Message(
+        subject,
+        reply_to=current_app.config['MAIL_DEFAULT_SENDER'],
+        recipients=recipients)
 
     msg.body = render_template(template + '.txt', **kwargs)
-#    msg.html = render_template(template + '.html', **kwargs)
+    #    msg.html = render_template(template + '.html', **kwargs)
 
     attachments = kwargs.get('attachments', [])
     mimes = MimeTypes()
