@@ -17,15 +17,16 @@ def get_fireeye_analyses():
 
 
 @cp.route('/analysis/fireeye/report', defaults={'type': 'html'})
-@cp.route('/analysis/fireeye/report/<string:sha256>/<envid>/<type>',
-          methods=['GET'])
+@cp.route(
+    '/analysis/fireeye/report/<string:sha256>/<envid>/<type>', methods=['GET'])
 def get_fireeye_report(sha256, envid, type):
     raise ApiException({}, 501)
 
 
 @cp.route('/analysis/fireeye/download', defaults={'ftype': 'bin', 'eid': 1})
-@cp.route('/analysis/fireeye/download/<string:sha256>/<eid>/<ftype>',
-          methods=['GET'])
+@cp.route(
+    '/analysis/fireeye/download/<string:sha256>/<eid>/<ftype>',
+    methods=['GET'])
 def get_fireeye_download(sha256, eid, ftype):
     raise ApiException({}, 501)
 
@@ -103,9 +104,7 @@ def get_fireeye_environments():
 
     :status 200:
     """
-    headers = {
-        'X-FeApi-Token': session.get('FE_API_TOKEN', None)
-    }
+    headers = {'X-FeApi-Token': session.get('FE_API_TOKEN', None)}
     req = fireeye.api.get('/config', headers=headers)
     e = etree.fromstring(req)
     envs = []

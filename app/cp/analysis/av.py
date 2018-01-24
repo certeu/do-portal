@@ -142,10 +142,11 @@ def add_cp_av_scan():
                 analysis.multiavscan.delay(child.sha256)
         except AttributeError as ae:
             current_app.log.info(ae)
-    return ApiResponse({
-        'files': request.json['files'],
-        'message': 'Your files have been submitted for AV scanning'
-    }, 202)
+    return ApiResponse(
+        {
+            'files': request.json['files'],
+            'message': 'Your files have been submitted for AV scanning'
+        }, 202)
 
 
 @cp.route('/analysis/av/engines')

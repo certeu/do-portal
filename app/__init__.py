@@ -21,7 +21,6 @@ version_ = (1, 8, 0)
 __version__ = '.'.join(map(str, version_[0:2]))
 __release__ = '.'.join(map(str, version_))
 
-
 db = SQLAlchemy()
 mail = Mail()
 login_manager = LoginManager()
@@ -52,18 +51,14 @@ def create_app(config_name):
         maxBytes=10 * 1024 * 1024,
         backupCount=5)
     rhandler.setFormatter(
-        logging.Formatter(
-            '%(asctime)s %(name)s %(levelname)s: %(message)s',
-            '%b %d %H:%M:%S'))
+        logging.Formatter('%(asctime)s %(name)s %(levelname)s: %(message)s',
+                          '%b %d %H:%M:%S'))
     rhandler.setLevel(logging.INFO)
     _audit_log.addHandler(rhandler)
     if app.config['SYSLOG_HOST']:
         shandler = logging.handlers.SysLogHandler(
-            address=(app.config['SYSLOG_HOST'], app.config['SYSLOG_PORT'])
-        )
-        shandler.setFormatter(
-            logging.Formatter('%(message)s')
-        )
+            address=(app.config['SYSLOG_HOST'], app.config['SYSLOG_PORT']))
+        shandler.setFormatter(logging.Formatter('%(message)s'))
         shandler.setLevel(logging.INFO)
         _audit_log.addHandler(shandler)
 
@@ -78,8 +73,8 @@ def create_app(config_name):
             credentials = None
             secure = None
             if app.config.get('MAIL_USERNAME') is not None:
-                credentials = (
-                    app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+                credentials = (app.config['MAIL_USERNAME'],
+                               app.config['MAIL_PASSWORD'])
                 if app.config['MAIL_USE_TLS'] is not None:
                     secure = ()
             mail_handler = logging.handlers.SMTPHandler(
@@ -108,6 +103,7 @@ def create_app(config_name):
         :return:
         """
         g.user = current_user
+
     return app
 
 

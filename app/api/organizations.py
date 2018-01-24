@@ -4,7 +4,7 @@ from flask_jsonschema import validate
 from sqlalchemy.exc import IntegrityError
 from app.core import ApiResponse, ApiException
 from . import api
-from ..import db
+from .. import db
 from ..models import Organization, Email, ContactEmail
 
 
@@ -380,18 +380,18 @@ def add_organization():
         for e in contact_emails:
             cp = e.get('cp', False)
             o.contact_emails.append(
-                ContactEmail(
-                    email_=Email(email=e['email']),
-                    cp=cp))
+                ContactEmail(email_=Email(email=e['email']), cp=cp))
     except KeyError as ke:
         current_app.log.warn('No contact emails provided: {}'.format(ke))
 
     db.session.add(o)
     db.session.commit()
-    return ApiResponse(
-        {'organization': o.serialize(), 'message': 'Organization added'},
-        201,
-        {'Location': url_for('api.get_organization', org_id=o.id)})
+    return ApiResponse({
+        'organization': o.serialize(),
+        'message': 'Organization added'
+    }, 201, {
+        'Location': url_for('api.get_organization', org_id=o.id)
+    })
 
 
 @api.route('/organizations/<int:org_id>', methods=['PUT'])
@@ -500,9 +500,7 @@ def update_organization(org_id):
     :status 403: Access denied. Authorization will not help and the request
         SHOULD NOT be repeated.
     """
-    o = Organization.query.filter(
-        Organization.id == org_id
-    ).first()
+    o = Organization.query.filter(Organization.id == org_id).first()
     if not o:
         return redirect(url_for('api.add_organization'))
     contact_emails = request.json.pop('contact_emails', [])
@@ -514,9 +512,9 @@ def update_organization(org_id):
         except IntegrityError as ie:
             #: Key constrain, this email is also used as abuse email
             current_app.log.debug(ie)
-            current_app.log.debug(
-                'Not deleting {}. '
-                'It\'s also used as abuse email'.format(c.email))
+            current_app.log.debug('Not deleting {}. '
+                                  'It\'s also used as abuse email'.format(
+                                      c.email))
     o.contact_emails = []
 
     for ac in o.abuse_emails:
@@ -536,9 +534,7 @@ def update_organization(org_id):
     for e in contact_emails:
         cp = e.get('cp', False)
         o.contact_emails.append(
-            ContactEmail(
-                email_=Email(email=e['email']),
-                cp=cp))
+            ContactEmail(email_=Email(email=e['email']), cp=cp))
 
     db.session.add(o)
     db.session.commit()
@@ -586,9 +582,7 @@ def delete_organization(org_id):
     :status 403: Access denied. Authorization will not help and the request
         SHOULD NOT be repeated.
     """
-    o = Organization.query.filter(
-        Organization.id == org_id
-    ).first_or_404()
+    o = Organization.query.filter(Organization.id == org_id).first_or_404()
 
     o.deleted = 1
     db.session.add(o)

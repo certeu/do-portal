@@ -94,40 +94,44 @@ def get_fireeye_analyses():
 
 
 @api.route('/analysis/fireeye/report', defaults={'type': 'html'})
-@api.route('/analysis/fireeye/report/<string:sha256>/<envid>/<type>',
-           methods=['GET'])
+@api.route(
+    '/analysis/fireeye/report/<string:sha256>/<envid>/<type>', methods=['GET'])
 def get_fireeye_report(sha256, envid, type):
     raise ApiException({}, 501)
     # XML, HTML, BIN and PCAP are GZipped
     Sample.query.filter_by(sha256=sha256).first_or_404()
     headers = {
         'Accept': 'text/html',
-        'User-Agent': 'FireEye Sandbox API Client'}
+        'User-Agent': 'FireEye Sandbox API Client'
+    }
     params = {'type': type, 'environmentId': envid}
-    vx = fireeye.api.get('result/{}'.format(sha256),
-                         params=params, headers=headers)
+    vx = fireeye.api.get(
+        'result/{}'.format(sha256), params=params, headers=headers)
     if type in ['xml', 'html', 'bin', 'pcap']:
         return gzip.decompress(vx)
     return vx
 
 
 @api.route('/analysis/fireeye/download', defaults={'ftype': 'bin', 'eid': 1})
-@api.route('/analysis/fireeye/download/<string:sha256>/<eid>/<ftype>',
-           methods=['GET'])
+@api.route(
+    '/analysis/fireeye/download/<string:sha256>/<eid>/<ftype>',
+    methods=['GET'])
 def get_fireeye_download(sha256, eid, ftype):
     raise ApiException({}, 501)
     Sample.query.filter_by(sha256=sha256).first_or_404()
     headers = {
         'Accept': 'text/html',
-        'User-Agent': 'FireEye Sandbox API Client'}
+        'User-Agent': 'FireEye Sandbox API Client'
+    }
     params = {'type': ftype, 'environmentId': eid}
-    vx = fireeye.api.get('result/{}'.format(sha256),
-                         params=params, headers=headers)
+    vx = fireeye.api.get(
+        'result/{}'.format(sha256), params=params, headers=headers)
     if ftype in ['xml', 'html', 'bin', 'pcap']:
         ftype += '.gz'
-    return send_file(BytesIO(vx),
-                     attachment_filename='{}.{}'.format(sha256, ftype),
-                     as_attachment=True)
+    return send_file(
+        BytesIO(vx),
+        attachment_filename='{}.{}'.format(sha256, ftype),
+        as_attachment=True)
 
 
 @api.route('/analysis/fireeye/<string:sha256>/<envid>', methods=['GET'])
@@ -232,8 +236,9 @@ def get_fireeye_analysis(sha256, envid):
     raise ApiException({}, 501)
     sample = Sample.query.filter_by(sha256=sha256).first_or_404()
     state = fireeye.api.get(
-        'state/{}'.format(sha256),
-        params={'environmentId': envid})
+        'state/{}'.format(sha256), params={
+            'environmentId': envid
+        })
     status = state['response_code'] == 0
     if status and state['response']['state'] == 0:
         #: FIXME: return the fireeye.api.get('result/sha256')
@@ -328,15 +333,14 @@ def add_fireeye_analysis():
 
     for env in request.json['dyn_analysis']['fireeye']:
         for f in request.json['files']:
-            resp = _submit_to_fireeye(f['sha256'],
-                                      env,
-                                      fe_token,
-                                      with_children=True)
+            resp = _submit_to_fireeye(
+                f['sha256'], env, fe_token, with_children=True)
             statuses.append(resp[0]['ID'])
-    return ApiResponse({
-        'statuses': statuses,
-        'message': 'Your files have been submitted for dynamic analysis'
-    }, 202)
+    return ApiResponse(
+        {
+            'statuses': statuses,
+            'message': 'Your files have been submitted for dynamic analysis'
+        }, 202)
 
 
 @api.route('/analysis/fireeye-url', methods=['POST', 'PUT'])
@@ -401,10 +405,7 @@ def add_fireeye_url_analysis():
     samples = {}
     for env in request.json['dyn_analysis']['fireeye']:
         for url in request.json['urls']:
-            sdata = {
-                'environmentId': env,
-                'analyzeurl': url
-            }
+            sdata = {'environmentId': env, 'analyzeurl': url}
             headers = {
                 'User-Agent': 'FireEye Sandbox API Client',
                 'Accept': 'application/json'
@@ -417,8 +418,14 @@ def add_fireeye_url_analysis():
                 current_app.log.debug(resp)
 
     for sha256, url in samples.items():
-        surl = Sample(filename=url, sha256=sha256, user_id=g.user.id,
-                      md5='N/A', sha1='N/A', sha512='N/A', ctph='N/A')
+        surl = Sample(
+            filename=url,
+            sha256=sha256,
+            user_id=g.user.id,
+            md5='N/A',
+            sha1='N/A',
+            sha512='N/A',
+            ctph='N/A')
         db.session.add(surl)
     db.session.commit()
     return {
@@ -476,9 +483,7 @@ def get_fireeye_environments():
 
     :status 200:
     """
-    headers = {
-        'X-FeApi-Token': session.get('FE_API_TOKEN', None)
-    }
+    headers = {'X-FeApi-Token': session.get('FE_API_TOKEN', None)}
     req = fireeye.api.get('/config', headers=headers)
     e = etree.fromstring(req)
     envs = []
@@ -526,11 +531,6 @@ def _submit_to_fireeye(sha256, env, token, with_children=False):
         "profiles": [env],  # VM to be used for analysis
         "timeout": "200"  # analysis timeout (seconds)
     }
-    headers = {
-        'Accept': 'application/json',
-        'X-FeApi-Token': token
-    }
+    headers = {'Accept': 'application/json', 'X-FeApi-Token': token}
     return fireeye.submit(
-        data=data, files=files,
-        verify=False,
-        headers=headers)
+        data=data, files=files, verify=False, headers=headers)

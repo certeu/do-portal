@@ -164,10 +164,12 @@ def add_ip_range():
     i = IpRange().from_json(request.json)
     db.session.add(i)
     db.session.commit()
-    return ApiResponse(
-        {'ip_range': i.serialize(), 'message': 'IP range added'},
-        201,
-        {'Location': url_for('api.get_ip_range', range_id=i.id)})
+    return ApiResponse({
+        'ip_range': i.serialize(),
+        'message': 'IP range added'
+    }, 201, {
+        'Location': url_for('api.get_ip_range', range_id=i.id)
+    })
 
 
 @api.route('/ip_ranges/<int:range_id>', methods=['PUT'])
@@ -215,9 +217,7 @@ def update_ip_range(range_id):
     :status 200: IP range was successfully updated
     :status 400: Bad request
     """
-    i = IpRange.query.filter(
-        IpRange.id == range_id
-    ).first()
+    i = IpRange.query.filter(IpRange.id == range_id).first()
     if not i:
         return redirect(url_for('api.add_ip_range'))
     i.from_json(request.json)
@@ -261,9 +261,7 @@ def delete_ip_range(range_id):
     :status 200: IP range was deleted
     :status 400: Bad request
     """
-    i = IpRange.query.filter(
-        IpRange.id == range_id
-    ).first_or_404()
+    i = IpRange.query.filter(IpRange.id == range_id).first_or_404()
 
     i.deleted = 1
     db.session.add(i)

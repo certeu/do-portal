@@ -154,10 +154,12 @@ def add_tag():
     t.user_id = g.user.id
     db.session.add(t)
     db.session.commit()
-    return ApiResponse(
-        {'tag': t.serialize(), 'message': 'Tag added'},
-        201,
-        {'Location': url_for('api.get_tag', tag_id=t.id)})
+    return ApiResponse({
+        'tag': t.serialize(),
+        'message': 'Tag added'
+    }, 201, {
+        'Location': url_for('api.get_tag', tag_id=t.id)
+    })
 
 
 @api.route('/tags/<int:tag_id>', methods=['PUT'])

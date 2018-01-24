@@ -1,9 +1,9 @@
-from flask import g, abort, request, url_for
+from flask import g, abort, request, redirect, url_for
 from flask_jsonschema import validate
 from app.core import ApiResponse
 from app import db
-from app.models import Organization, Permission, ContactEmail, Email
-from app.api.decorators import permission_required
+from app.models import Organization, ContactEmail, Email
+# using it soon from app.api.decorators import permission_required
 # from app.models import Organization, ContactEmail, Email
 from app.api.decorators import json_response
 from . import cp
@@ -99,6 +99,8 @@ def get_cp_organizations():
     """
     orgs = g.user.get_organizations()
     return ApiResponse({'organizations': [o.serialize() for o in orgs]})
+
+
 #    return ApiResponse(o.serialize())
 
 
@@ -206,6 +208,7 @@ def update_cp_organization():
     return ApiResponse(o.serialize())
     # return o.serialize()
 """
+
 
 @cp.route('/organizations', methods=['POST'])
 @validate('organizations', 'add_cp_organization')
@@ -324,9 +327,7 @@ def add_cp_organization():
         for e in contact_emails:
             cp = e.get('cp', False)
             o.contact_emails.append(
-                ContactEmail(
-                    email_=Email(email=e['email']),
-                    cp=cp))
+                ContactEmail(email_=Email(email=e['email']), cp=cp))
     except KeyError as ke:
         print('No contact emails provided: {}'.format(ke))
 
@@ -428,17 +429,16 @@ def update_cp_organization(org_id):
     :status 400: Bad request
     :status 422: Validation error
     """
-    o = Organization.query.filter(
-        Organization.id == org_id
-    ).first()
+    o = Organization.query.filter(Organization.id == org_id).first()
     if not o:
         return redirect(url_for('cp.add_cp_organization'))
 
     if not g.user.may_handle_organization(o):
         abort(403)
 
-    untouchables_ = ['is_sla', 'mail_template', 'group_id', 'old_ID', 'group',
-                     'group_id']
+    untouchables_ = [
+        'is_sla', 'mail_template', 'group_id', 'old_ID', 'group', 'group_id'
+    ]
     for k in untouchables_:
         request.json.pop(k, None)
 
@@ -455,10 +455,7 @@ def update_cp_organization(org_id):
         cp = e.get('cp', False)
         fmb = e.get('fmb', False)
         o.contact_emails.append(
-            ContactEmail(
-                email_=Email(email=e['email']),
-                fmb=fmb,
-                cp=cp))
+            ContactEmail(email_=Email(email=e['email']), fmb=fmb, cp=cp))
 
     db.session.add(o)
     db.session.commit()
@@ -500,9 +497,7 @@ def delete_cp_organization(org_id):
     :status 200: Organization was deleted
     :status 404: Organization was not found
     """
-    o = Organization.query.filter(
-        Organization.id == org_id
-    ).first_or_404()
+    o = Organization.query.filter(Organization.id == org_id).first_or_404()
 
     if not g.user.may_handle_organization(o):
         abort(403)

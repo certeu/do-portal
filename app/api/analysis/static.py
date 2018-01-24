@@ -259,6 +259,7 @@ def add_analysis():
         except AttributeError as ae:
             current_app.log.info(ae)
     return ApiResponse(
-        {'files': request.json['files'],
-         'message': 'Your files have been submitted for static analysis'},
-        202)
+        {
+            'files': request.json['files'],
+            'message': 'Your files have been submitted for static analysis'
+        }, 202)

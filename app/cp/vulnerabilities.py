@@ -71,8 +71,8 @@ def get_vulnerabilities():
     :status 404: Not found
     """
 
-    return ApiPagedResponse(Vulnerability.query.filter_by(
-        organization_id=g.user.organization_id))
+    return ApiPagedResponse(
+        Vulnerability.query.filter_by(organization_id=g.user.organization_id))
 
 
 @cp.route('/vulnerabilities/<int:vuln_id>', methods=['GET'])

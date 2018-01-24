@@ -11,7 +11,7 @@ from mailmanclient import MailmanConnectionError, Client
 import onetimepass
 from app import db, login_manager, config
 from sqlalchemy import desc, event
-from sqlalchemy.dialects import postgres
+# from sqlalchemy.dialects import postgres
 from flask_sqlalchemy import BaseQuery
 from flask import current_app, request
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -30,6 +30,7 @@ import time
 #: we need to load the configuration from the config module
 _config = config.get(os.getenv('DO_CONFIG') or 'default')
 
+
 def check_password_quality(password):
     import re
     error_text = ''
@@ -38,7 +39,7 @@ def check_password_quality(password):
         ea.append('password too short')
     if not re.search(r"\d", password):
         ea.append('password has to contain a number')
-    if not re.search(r"[ !#$%&'()*+,-./[\\\]^_`{|}~"+r'"]', password):
+    if not re.search(r"[ !#$%&'()*+,-./[\\\]^_`{|}~" + r'"]', password):
         ea.append('password has to contain a special character')
     if not re.search(r"[A-Z]", password):
         ea.append('password has to contain an upper case letter')
@@ -50,34 +51,20 @@ def check_password_quality(password):
 
 
 emails_organizations = db.Table(
-    'emails_organizations', db.metadata,
+    'emails_organizations',
+    db.metadata,
     db.Column('id', db.Integer, primary_key=True),
-    db.Column(
-        'email_id',
-        db.Integer,
-        db.ForeignKey('emails.id')
-    ),
-    db.Column(
-        'organization_id',
-        db.Integer,
-        db.ForeignKey('organizations.id')
-    ),
+    db.Column('email_id', db.Integer, db.ForeignKey('emails.id')),
+    db.Column('organization_id', db.Integer,
+              db.ForeignKey('organizations.id')),
     # db.UniqueConstraint('email_id', 'organization_id', name='eo_idx')
 )
-tags_vulnerabilities = db.Table(
-    'tags_vulnerabilities', db.metadata,
-    db.Column('id', db.Integer, primary_key=True),
-    db.Column(
-        'tag_id',
-        db.Integer,
-        db.ForeignKey('tags.id')
-    ),
-    db.Column(
-        'vulnerability_id',
-        db.Integer,
-        db.ForeignKey('vulnerabilities.id')
-    )
-)
+tags_vulnerabilities = db.Table('tags_vulnerabilities', db.metadata,
+                                db.Column('id', db.Integer, primary_key=True),
+                                db.Column('tag_id', db.Integer,
+                                          db.ForeignKey('tags.id')),
+                                db.Column('vulnerability_id', db.Integer,
+                                          db.ForeignKey('vulnerabilities.id')))
 
 
 class FilteredQuery(BaseQuery):
@@ -85,6 +72,7 @@ class FilteredQuery(BaseQuery):
     .. todo:: Remove the deleted field and all logic associated with it.
         Audit log will record any changes
     """
+
     def get(self, ident):
         # override get() so that the flag is always checked in the
         # DB as opposed to pulling from the identity map. - this is optional.
@@ -112,8 +100,10 @@ class Model(db.Model):
     __abstract__ = True
     __public__ = ()
     created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    updated = db.Column(db.DateTime, default=datetime.datetime.utcnow,
-                        onupdate=datetime.datetime.utcnow)
+    updated = db.Column(
+        db.DateTime,
+        default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow)
 
     #: Flask-SQLAlchemy's base model class
     #: (which is also SQLAlchemy's declarative base class) defines a
@@ -171,7 +161,6 @@ class MailmanApiError(Exception):
 
 
 class MailmanQuery:
-
     def __init__(self, endpoint, **kwargs):
         self.endpoint = endpoint
 
@@ -204,7 +193,6 @@ class MailmanQuery:
 
 
 class MailmanModel:
-
     def __init__(self, endpoint, **kwargs):
         self.endpoint = endpoint
 
@@ -240,12 +228,17 @@ class MailmanMember(MailmanModel):
 class User(UserMixin, Model, SerializerMixin):
     """User model"""
     __tablename__ = 'users'
-    __public__ = ('id', 'name', 'api_key', 'otp_enabled', 'picture', 'birthdate', 'title', 'origin', 'email', 'picture_filename')
+    __public__ = ('id', 'name', 'api_key', 'otp_enabled', 'picture',
+                  'birthdate', 'title', 'origin', 'email', 'picture_filename')
     id = db.Column(db.Integer, primary_key=True)
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'))
     name = db.Column(db.String(255), nullable=False)
-    _password = db.Column('password', db.String(255), nullable=False, default=binascii.hexlify(os.urandom(12)).decode())
+    _password = db.Column(
+        'password',
+        db.String(255),
+        nullable=False,
+        default=binascii.hexlify(os.urandom(12)).decode())
     _email = db.Column('email', db.String(255), unique=True)
     api_key = db.Column(db.String(64), nullable=True)
     is_admin = db.Column(db.Boolean(), default=False)
@@ -304,8 +297,7 @@ class User(UserMixin, Model, SerializerMixin):
         if password_errors:
             raise AttributeError(password_errors)
         self._password = generate_password_hash(
-            password, method='pbkdf2:sha512:100001', salt_length=32
-        )
+            password, method='pbkdf2:sha512:100001', salt_length=32)
 
     def check_password(self, password):
         return check_password_hash(self._password, password)
@@ -343,10 +335,14 @@ class User(UserMixin, Model, SerializerMixin):
             orgs = user.get_organization_memberships()
             if orgs == []:
                 return False
-            password = binascii.hexlify(os.urandom(random.randint(6, 8))).decode('ascii')+'aB1$'
+            password = binascii.hexlify(os.urandom(random.randint(
+                6, 8))).decode('ascii') + 'aB1$'
             user.password = password
-            send_email('energy-cert account', [user.email],
-                   'auth/email/ec_reset_password', user=user, new_password=password)
+            send_email(
+                'energy-cert account', [user.email],
+                'auth/email/ec_reset_password',
+                user=user,
+                new_password=password)
             db.session.add(user)
             db.session.commit()
             return password
@@ -364,9 +360,7 @@ class User(UserMixin, Model, SerializerMixin):
             current_app.config['SECRET_KEY'],
             salt='user-auth',
             signer_kwargs=dict(
-                key_derivation='hmac',
-                digest_method=hashlib.sha256)
-        )
+                key_derivation='hmac', digest_method=hashlib.sha256))
         return s.dumps(data)
 
     def generate_reset_token(self, expiry=900):
@@ -377,9 +371,8 @@ class User(UserMixin, Model, SerializerMixin):
         :param expiry: Token expiration time (seconds)
         :return:
         """
-        s = TimedJSONWebSignatureSerializer(
-            current_app.config['SECRET_KEY'], expiry
-        )
+        s = TimedJSONWebSignatureSerializer(current_app.config['SECRET_KEY'],
+                                            expiry)
         return s.dumps({'user_id': self.id})
 
     def reset_password(self, token, new_pass):
@@ -427,8 +420,11 @@ class User(UserMixin, Model, SerializerMixin):
                 User.random_str(8), User.random_str(8))
             current_app.config['ADMINS'].append(email)
             Role._Role__insert_defaults()
-            user = User(name=name, email=email, password='e9c9525ef737',
-                        otp_enabled=True)
+            user = User(
+                name=name,
+                email=email,
+                password='e9c9525ef737',
+                otp_enabled=True)
             user.api_key = user.generate_api_key()
             db.session.add(user)
             db.session.commit()
@@ -438,11 +434,9 @@ class User(UserMixin, Model, SerializerMixin):
         rand = self.random_str()
         return hashlib.sha256(rand.encode()).hexdigest()
 
-
     @staticmethod
     def random_str(length=64):
         return binascii.hexlify(os.urandom(length)).decode()
-
 
     def can(self, permissions):
         return self.role is not None and \
@@ -456,10 +450,9 @@ class User(UserMixin, Model, SerializerMixin):
            (which MUST be an OrgAdmin)
             may manipulate the user of the parameter list
         """
-        oms = self.get_organization_memberships()
         for um in user.user_memberships:
-           if um.organization_id in self._org_ids:
-              return True
+            if um.organization_id in self._org_ids:
+                return True
         return False
 
     def mark_as_deleted(self):
@@ -468,7 +461,7 @@ class User(UserMixin, Model, SerializerMixin):
         self.email = str(time.time()) + self.email
         db.session.add(self)
         for um in self.user_memberships:
-            um.mark_as_deleted(delete_last_membership = True)
+            um.mark_as_deleted(delete_last_membership=True)
 
     def may_handle_organization(self, org):
         """checks if the user object it is called on
@@ -480,31 +473,26 @@ class User(UserMixin, Model, SerializerMixin):
             return True
         return False
 
-
     def _org_tree_iterator(self, org_id):
-        sub_orgs = Organization.query.filter_by(parent_org_id = org_id)
+        sub_orgs = Organization.query.filter_by(parent_org_id=org_id)
         for sub_org in sub_orgs:
-           # print(sub_org.full_name + str(sub_org.id))
-           self._orgs.append(sub_org.organization_memberships)
-           self._org_ids.append(sub_org.id)
-           self._org_tree_iterator(sub_org.id)
+            # print(sub_org.full_name + str(sub_org.id))
+            self._orgs.append(sub_org.organization_memberships)
+            self._org_ids.append(sub_org.id)
+            self._org_tree_iterator(sub_org.id)
 
     def get_organization_memberships(self):
         """ returns a list of OrganizationMembership records"""
         """ self MUST be a logged in admin, we find all nodes (and subnodes)
             where the user is admin an return ALL memeberships of those nodes
             in the org tree """
-        # Or = self.user_memberships.membership_role.filter(MembershipRole.name == 'OrgAdmin' )
         # there must be a better way to write this
-        admin_role = MembershipRole.query.filter_by(name = 'OrgAdmin').first()
-        # orgs_admin = OrganizationMembership.query.filter_by(user_id = self.id, membership_role_id = admin_role.id).first() #.filter(MembershipRole.name == 'OrgAdmin' )
-#        orgs_admin = OrganizationMembership.query.filter(OrganizationMembership.use = self, membership_role_id = admin_role.id).first()
-
-
-        orgs_admins = OrganizationMembership.query.filter_by(user_id = self.id, membership_role_id = admin_role.id).all()
+        admin_role = MembershipRole.query.filter_by(name='OrgAdmin').first()
+        orgs_admins = OrganizationMembership.query.filter_by(
+            user_id=self.id, membership_role_id=admin_role.id).all()
 
         if (not orgs_admins):
-           return []
+            return []
 
         self._orgs = [orgs_admins]
         self._org_ids = [org.organization.id for org in orgs_admins]
@@ -513,7 +501,8 @@ class User(UserMixin, Model, SerializerMixin):
         #  for org in orgs_admin:
         for oa in orgs_admins:
             self._org_tree_iterator(oa.organization_id)
-        return OrganizationMembership.query.filter(OrganizationMembership.organization_id.in_(self._org_ids))
+        return OrganizationMembership.query.filter(
+            OrganizationMembership.organization_id.in_(self._org_ids))
 
     def get_organizations(self):
         """returns a list of Organization records"""
@@ -538,6 +527,7 @@ class User(UserMixin, Model, SerializerMixin):
     def get_memberships(self):
         """returns all memeberships for user"""
         return self.user_memberships
+
 
 class Permission:
     """Permissions pseudo-model. Uses 8 bits to assign permissions.
@@ -658,31 +648,19 @@ class ContactEmail(Model, SerializerMixin):
     __public__ = ('email', 'cp', 'fmb')
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     email_id = db.Column(
-        db.Integer,
-        db.ForeignKey('emails.id'),
-        primary_key=True)
+        db.Integer, db.ForeignKey('emails.id'), primary_key=True)
     organization_id = db.Column(
-        db.Integer,
-        db.ForeignKey('organizations.id'),
-        primary_key=True
-    )
+        db.Integer, db.ForeignKey('organizations.id'), primary_key=True)
     #: Mark customer portal access for this email
     cp = db.Column('cp_access', db.Boolean(), default=False, doc='CP access')
     #: Functional mailbox marker
     fmb = db.Column(db.Boolean(), default=False, doc='Functional mailbox')
     organization = db.relationship(
         'Organization',
-        backref=db.backref(
-            'contact_emails',
-            cascade='all, delete-orphan'
-        )
-    )
+        backref=db.backref('contact_emails', cascade='all, delete-orphan'))
     email_ = db.relationship('Email')
     email = association_proxy(
-        'email_',
-        'email',
-        creator=lambda eml: Email(email=eml)
-    )
+        'email_', 'email', creator=lambda eml: Email(email=eml))
 
     def __repr__(self):
         return '<AssociationProxy Email({0})>'.format(self.email)
@@ -734,16 +712,21 @@ class OrganizationGroup(Model, SerializerMixin):
     color = db.Column(db.String(7))
     deleted = db.Column(db.Integer, default=0)
 
-    __mapper_args__ = {
-        'order_by': desc(id)
-    }
+    __mapper_args__ = {'order_by': desc(id)}
 
     @staticmethod
     def __insert_defaults():
         """Insert sample organization groups"""
-        groups = [{'name': 'Constituents', 'color': '#0033CC'},
-                  {'name': 'National CERTs', 'color': '#AF2018'},
-                  {'name': 'Partners', 'color': '#00FF00'}]
+        groups = [{
+            'name': 'Constituents',
+            'color': '#0033CC'
+        }, {
+            'name': 'National CERTs',
+            'color': '#AF2018'
+        }, {
+            'name': 'Partners',
+            'color': '#00FF00'
+        }]
         for group in groups:
             g = OrganizationGroup(**group)
             db.session.add(g)
@@ -769,11 +752,9 @@ class Organization(Model, SerializerMixin):
                   'contact_emails', 'display_name', 'parent_org_id')
     query_class = FilteredQuery
     id = db.Column(db.Integer, primary_key=True)
-    group_id = db.Column(
-        'organization_group_id',
-        db.Integer,
-        db.ForeignKey('organization_groups.id', name='fk_org_group_id')
-    )
+    group_id = db.Column('organization_group_id', db.Integer,
+                         db.ForeignKey(
+                             'organization_groups.id', name='fk_org_group_id'))
     is_sla = db.Column(db.Boolean, default=True)
     abbreviation = db.Column(db.String(255), index=True)
     # this is the ID field from AH wiki
@@ -793,38 +774,26 @@ class Organization(Model, SerializerMixin):
     parent_org = db.relationship('Organization', remote_side=[id])
 
     organization_memberships = db.relationship(
-        'OrganizationMembership',
-        backref='orgs_for_user'
-    )
+        'OrganizationMembership', backref='orgs_for_user')
 
     group = db.relationship(
-        'OrganizationGroup',
-        uselist=False,
-        foreign_keys=[group_id]
-    )
+        'OrganizationGroup', uselist=False, foreign_keys=[group_id])
     ip_ranges_ = db.relationship(
         'IpRange',
         cascade='all, delete-orphan',
         primaryjoin="and_(IpRange.organization_id == Organization.id, "
-                    "IpRange.deleted == 0)",
+        "IpRange.deleted == 0)",
     )
     ip_ranges = association_proxy(
-        'ip_ranges_',
-        'ip_range',
-        creator=lambda r: IpRange(ip_range=r)
-    )
+        'ip_ranges_', 'ip_range', creator=lambda r: IpRange(ip_range=r))
     abuse_emails_ = db.relationship(
-        "Email", secondary=lambda: emails_organizations,
-        secondaryjoin=db.and_(
-            Email.id == emails_organizations.c.email_id,
-            Email.deleted == 0)
-    )
+        "Email",
+        secondary=lambda: emails_organizations,
+        secondaryjoin=db.and_(Email.id == emails_organizations.c.email_id,
+                              Email.deleted == 0))
     #: Abuse e-mails are read by machines
     abuse_emails = association_proxy(
-        'abuse_emails_',
-        'email',
-        creator=lambda eml: Email(email=eml)
-    )
+        'abuse_emails_', 'email', creator=lambda eml: Email(email=eml))
 
     #: Contact e-mails are used by humans
     contact_emails = association_proxy('contact_emails', 'email')
@@ -833,26 +802,16 @@ class Organization(Model, SerializerMixin):
         'Asn',
         cascade='all, delete-orphan',
         primaryjoin="and_(Asn.organization_id == Organization.id,"
-                    "Asn.deleted == 0)"
-    )
-    asns = association_proxy(
-        'asns_',
-        'asn',
-        creator=lambda asn: Asn(asn=asn)
-    )
+        "Asn.deleted == 0)")
+    asns = association_proxy('asns_', 'asn', creator=lambda asn: Asn(asn=asn))
     fqdns_ = db.relationship('Fqdn', cascade='all, delete-orphan')
     fqdns = association_proxy(
-        'fqdns_',
-        'fqdn',
-        creator=lambda fqdn: Fqdn(fqdn=fqdn)
-    )
+        'fqdns_', 'fqdn', creator=lambda fqdn: Fqdn(fqdn=fqdn))
 
     users = db.relationship(
         'User', backref=db.backref('organizations'), lazy='dynamic')
 
-    __mapper_args__ = {
-        'order_by': abbreviation
-    }
+    __mapper_args__ = {'order_by': abbreviation}
 
     @staticmethod
     def from_collab(customer):
@@ -868,8 +827,7 @@ class Organization(Model, SerializerMixin):
             org.full_name = conf['Full name'][0]
         except IndexError:
             current_app.log.error(
-                'Organization {} is missing full name...'.format(customer[0])
-            )
+                'Organization {} is missing full name...'.format(customer[0]))
         try:
             org.mail_times = conf['Mail times'][0]
         except IndexError:
@@ -912,7 +870,6 @@ class Organization(Model, SerializerMixin):
 
     # STUB
     def can_be_deleted(self):
-        # not has_child_organizations and not has associated OrganizationMembership
         # records
         return True
 
@@ -944,10 +901,12 @@ class Vulnerability(Model, SerializerMixin):
     reporter_email = db.Column(db.String(255))
     #: PoC
     url = db.Column(db.Text)
-    request_method = db.Column(db.Enum('GET', 'POST', 'PUT', name='httpverb'), default='GET')
+    request_method = db.Column(
+        db.Enum('GET', 'POST', 'PUT', name='httpverb'), default='GET')
     request_data = db.Column(db.Text)
     check_string = db.Column(db.Text)
-    test_type = db.Column(db.Enum('request', name='test_type_enum'), default='request')
+    test_type = db.Column(
+        db.Enum('request', name='test_type_enum'), default='request')
     request_response_code = db.Column(db.Integer, nullable=True)
     tested = db.Column(db.DateTime, nullable=True)
     reported = db.Column(db.DateTime, default=datetime.datetime.utcnow)
@@ -965,16 +924,11 @@ class Vulnerability(Model, SerializerMixin):
     do = association_proxy('user', 'name')
 
     labels_ = db.relationship(
-        'Tag', secondary=tags_vulnerabilities,
+        'Tag',
+        secondary=tags_vulnerabilities,
         backref=db.backref('vulnerabilities'))
-    types = association_proxy(
-        'labels_',
-        'name',
-        creator=lambda l: Tag(name=l)
-    )
-    __mapper_args__ = {
-        'order_by': desc(id)
-    }
+    types = association_proxy('labels_', 'name', creator=lambda l: Tag(name=l))
+    __mapper_args__ = {'order_by': desc(id)}
 
 
 class Deliverable(Model, SerializerMixin):
@@ -1002,18 +956,13 @@ class DeliverableFile(Model, SerializerMixin):
     deleted = db.Column(db.Integer, default=0)
 
     deliverable_ = db.relationship(
-        'Deliverable', uselist=False,
+        'Deliverable',
+        uselist=False,
         foreign_keys=[deliverable_id],
-        backref=db.backref('files')
-    )
-    type = association_proxy(
-        'deliverable_',
-        'name'
-    )
+        backref=db.backref('files'))
+    type = association_proxy('deliverable_', 'name')
 
-    __mapper_args__ = {
-        'order_by': desc(id)
-    }
+    __mapper_args__ = {'order_by': desc(id)}
 
 
 class Task(Model):
@@ -1046,16 +995,12 @@ class AHBot(Model, SerializerMixin):
     __tablename__ = 'ah_bots'
     __public__ = ('id', 'name')
     id = db.Column(db.Integer, primary_key=True)
-    bot_type_id = db.Column(
-        db.Integer,
-        db.ForeignKey('ah_bot_types.id'))
+    bot_type_id = db.Column(db.Integer, db.ForeignKey('ah_bot_types.id'))
     name = db.Column(db.String(30))
     description = db.Column(db.String(255))
 
     type = db.relationship(
-        'AHBotType', uselist=False,
-        foreign_keys=[bot_type_id]
-    )
+        'AHBotType', uselist=False, foreign_keys=[bot_type_id])
 
 
 class AHStartupConfig(Model, SerializerMixin):
@@ -1064,37 +1009,30 @@ class AHStartupConfig(Model, SerializerMixin):
     # hasMany AbuseHelperStartupParam
     # HABTM AbuseHelperStartupTemplate
     id = db.Column(db.Integer, primary_key=True)
-    ah_bot_id = db.Column(
-        db.Integer,
-        db.ForeignKey('ah_bots.id'))
+    ah_bot_id = db.Column(db.Integer, db.ForeignKey('ah_bots.id'))
     enabled = db.Column(db.Boolean(), default=False)
     #: python module or PATH
     module = db.Column(db.String(255))
     state = db.Column(db.Boolean(), default=False, nullable=True)
     pid = db.Column(db.Integer, nullable=True)
     started = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    stopped = db.Column(db.DateTime, nullable=True,
-                        onupdate=datetime.datetime.utcnow)
-    ah_bot = db.relationship(
-        'AHBot',
-        foreign_keys=[ah_bot_id]
-    )
+    stopped = db.Column(
+        db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+    ah_bot = db.relationship('AHBot', foreign_keys=[ah_bot_id])
 
 
 class AHStartupConfigParam(Model, SerializerMixin):
     __tablename__ = 'ah_startup_config_params'
     # belongsTo AbuseHelperStartupConfig
     id = db.Column(db.Integer, primary_key=True)
-    ah_startup_config_id = db.Column(
-        db.Integer,
-        db.ForeignKey('ah_startup_configs.id'))
+    ah_startup_config_id = db.Column(db.Integer,
+                                     db.ForeignKey('ah_startup_configs.id'))
     key = db.Column(db.String(100), nullable=False)
     value = db.Column(db.String(100), nullable=False)
     ah_startup_config = db.relationship(
         'AHStartupConfig',
         foreign_keys=[ah_startup_config_id],
-        backref=db.backref('params')
-    )
+        backref=db.backref('params'))
 
 
 class AHRuntimeConfig(Model, SerializerMixin):
@@ -1103,29 +1041,22 @@ class AHRuntimeConfig(Model, SerializerMixin):
     # hasMany AbuseHelperRuntimeConfigParam
     id = db.Column(db.Integer, primary_key=True)
     alias = db.Column(db.String(2))
-    ah_bot_id = db.Column(
-        db.Integer,
-        db.ForeignKey('ah_bots.id'))
-    ah_bot = db.relationship(
-        'AHBot',
-        foreign_keys=[ah_bot_id]
-    )
+    ah_bot_id = db.Column(db.Integer, db.ForeignKey('ah_bots.id'))
+    ah_bot = db.relationship('AHBot', foreign_keys=[ah_bot_id])
 
 
 class AHRuntimeConfigParam(Model, SerializerMixin):
     __tablename__ = 'ah_runtime_config_params'
     # belongsTo AbuseHelperRuntimeConfig
     id = db.Column(db.Integer, primary_key=True)
-    ah_runtime_config_id = db.Column(
-        db.Integer,
-        db.ForeignKey('ah_runtime_configs.id'))
+    ah_runtime_config_id = db.Column(db.Integer,
+                                     db.ForeignKey('ah_runtime_configs.id'))
     key = db.Column(db.String(100), nullable=False)
     value = db.Column(db.String(100), nullable=False)
     ah_runtime_config = db.relationship(
         'AHRuntimeConfig',
         foreign_keys=[ah_runtime_config_id],
-        backref=db.backref('params')
-    )
+        backref=db.backref('params'))
 
 
 class Sample(Model, SerializerMixin):
@@ -1141,9 +1072,7 @@ class Sample(Model, SerializerMixin):
     #: For archives. All files within an archive will have the parent_id set
     #: to the archive unique ID
     parent_id = db.Column(
-        db.Integer,
-        db.ForeignKey('samples.id'),
-        nullable=True)
+        db.Integer, db.ForeignKey('samples.id'), nullable=True)
     #: Submitted filename
     filename = db.Column(db.Text, nullable=False)
     md5 = db.Column(db.String(32), nullable=False)
@@ -1153,8 +1082,7 @@ class Sample(Model, SerializerMixin):
     sha512 = db.Column(db.String(128), nullable=False)
     #: Context triggered piecewise hash
     ctph = db.Column(
-        db.Text, nullable=False,
-        doc='Context triggered piecewise hash')
+        db.Text, nullable=False, doc='Context triggered piecewise hash')
     infected = db.Column(db.Integer, default=0)
     deleted = db.Column(db.Integer, default=0)
 
@@ -1162,14 +1090,12 @@ class Sample(Model, SerializerMixin):
 
     reports = db.relationship('Report')
     user = db.relationship(
-        'User', uselist=False,
+        'User',
+        uselist=False,
         foreign_keys=[user_id],
-        backref=db.backref('samples')
-    )
+        backref=db.backref('samples'))
     parent = db.relationship(
-        'Sample', backref=db.backref('children'),
-        remote_side=[id]
-    )
+        'Sample', backref=db.backref('children'), remote_side=[id])
 
 
 class ReportType(Model, SerializerMixin):
@@ -1197,10 +1123,7 @@ class Report(Model, SerializerMixin):
     __mapper_args__ = {'order_by': desc(id)}
 
     type_ = db.relationship('ReportType')
-    type = association_proxy(
-        'type_',
-        'name'
-    )
+    type = association_proxy('type_', 'name')
 
 
 class Contact(Model):
@@ -1213,6 +1136,7 @@ class Contact(Model):
     email = db.Column(db.String(255), nullable=False)
     deleted = db.Column(db.Integer, default=0)
 
+
 class Country(Model, SerializerMixin):
     __tablename__ = 'countries'
     __public__ = ('id', 'cc', 'name')
@@ -1222,34 +1146,21 @@ class Country(Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
     deleted = db.Column(db.Integer, default=0)
     users_for_country = db.relationship(
-        'OrganizationMembership',
-        back_populates='country'
-    )
+        'OrganizationMembership', back_populates='country')
 
     @staticmethod
     def __insert_defaults():
-##        countries = [
-##          ['AT',               'Austria'],
-##          ['DE',               'Germany'],
-##          ['CH',               'Switzerland'],
-##        ]
-##        for r in countries:
-##            country = Country.query.filter_by(name=r[0]).first()
-##
-##            if country is None:
-##                country = Country(cc=r[0], name=r[1] )
-##                db.session.add(country)
-##        db.session.commit()
         with open('install/iso_3166_2_countries.csv') as csvfile:
-            data = csv.reader(csvfile, delimiter = ',')
+            data = csv.reader(csvfile, delimiter=',')
             data = list(data)
             for r in data[2:]:
-            #    print(r[1], r[10])
+                #    print(r[1], r[10])
                 country = Country.query.filter_by(cc=r[10]).first()
                 if country is None:
-                    country = Country(cc=r[10], name=r[1] )
+                    country = Country(cc=r[10], name=r[1])
                     db.session.add(country)
             db.session.commit()
+
 
 class MembershipRole(Model, SerializerMixin):
     __tablename__ = 'membership_roles'
@@ -1260,25 +1171,21 @@ class MembershipRole(Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True)
     deleted = db.Column(db.Integer, default=0)
     users_for_role = db.relationship(
-        'OrganizationMembership',
-        back_populates='membership_role'
-    )
+        'OrganizationMembership', back_populates='membership_role')
 
-    __mapper_args__ = {
-        'order_by': name
-    }
+    __mapper_args__ = {'order_by': name}
 
     @staticmethod
     def __insert_defaults():
         # this role has to exist
         roles = [['OrgAdmin', 'Administrator Organisation']]
         default_roles = [
-           ['tech-c', 'Domain Technical Contact (tech-c)'],
-           ['abuse-c', 'Domain Abuse Contact (abuse-c)'],
-           ['billing-c', 'Domain Billing Contact (billing-c)'],
-           ['admin-c', 'Domain Administrative Contact (admin-c)'],
-           ['CISO', 'CISO'],
-           ['private', 'Private'],
+            ['tech-c', 'Domain Technical Contact (tech-c)'],
+            ['abuse-c', 'Domain Abuse Contact (abuse-c)'],
+            ['billing-c', 'Domain Billing Contact (billing-c)'],
+            ['admin-c', 'Domain Administrative Contact (admin-c)'],
+            ['CISO', 'CISO'],
+            ['private', 'Private'],
         ]
 
         try:
@@ -1294,7 +1201,7 @@ class MembershipRole(Model, SerializerMixin):
             role = MembershipRole.query.filter_by(name=r[0]).first()
 
             if role is None:
-                role = MembershipRole(name=r[0], display_name=r[1] )
+                role = MembershipRole(name=r[0], display_name=r[1])
                 db.session.add(role)
         db.session.commit()
 
@@ -1302,22 +1209,23 @@ class MembershipRole(Model, SerializerMixin):
             return '{} #{}'.format(self.__class__.__name__, self.name)
 
 
-
 class OrganizationMembership(Model, SerializerMixin):
     __tablename__ = 'organization_memberships'
     __public__ = ('id', 'user_id', 'organization_id', 'street', 'zip', 'city',
-                  'country', 'comment', 'email', 'phone', 'mobile', 'membership_role_id',
-                  'pgp_key_id', 'pgp_key_fingerprint', 'pgp_key', 'smime', 'country_id',
-                  'coc', 'coc_filename', 'smime_filename', 'sms_alerting')
+                  'country', 'comment', 'email', 'phone', 'mobile',
+                  'membership_role_id', 'pgp_key_id', 'pgp_key_fingerprint',
+                  'pgp_key', 'smime', 'country_id', 'coc', 'coc_filename',
+                  'smime_filename', 'sms_alerting')
 
     query_class = FilteredQuery
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    user = db.relationship("User", back_populates="user_memberships", lazy='subquery')
+    user = db.relationship(
+        "User", back_populates="user_memberships", lazy='subquery')
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'))
-    # organization = db.relationship("Organization", back_populates="organization_membership")
     organization = db.relationship("Organization")
-    membership_role_id = db.Column(db.Integer, db.ForeignKey('membership_roles.id'))
+    membership_role_id = db.Column(db.Integer,
+                                   db.ForeignKey('membership_roles.id'))
     membership_role = db.relationship("MembershipRole")
     street = db.Column(db.String(255))
     zip = db.Column(db.String(25))
@@ -1340,9 +1248,9 @@ class OrganizationMembership(Model, SerializerMixin):
     coc_filename = db.Column(db.String(255))
     _sms_alerting = db.Column('sms_alerting', db.Integer, default=0)
 
-    def mark_as_deleted(self, delete_last_membership = False):
-        mc = self.user.user_memberships_dyn.filter_by(deleted = 0).count()
-        if mc == 1 and delete_last_membership == False:
+    def mark_as_deleted(self, delete_last_membership=False):
+        mc = self.user.user_memberships_dyn.filter_by(deleted=0).count()
+        if mc == 1 and delete_last_membership is False:
             raise AttributeError('Last membership may not be deleted')
         self.deleted = 1
         self.ts_deleted = datetime.datetime.utcnow()
@@ -1353,9 +1261,10 @@ class OrganizationMembership(Model, SerializerMixin):
 
     @sms_alerting.setter
     def sms_alerting(self, sms_alerting):
-        #if sms_alerting == 1 and not self._mobile:
-        #    db.session.rollback()
-        #    raise AttributeError('if sms_alerting is set mobile number also has to be set')
+        # if sms_alerting == 1 and not self._mobile:
+        #     db.session.rollback()
+        #     raise AttributeError( \
+        # 'if sms_alerting is set mobile number also has to be set')
         self._sms_alerting = sms_alerting
 
     @property
@@ -1379,7 +1288,7 @@ class OrganizationMembership(Model, SerializerMixin):
             if not phone:
                 phone = None
             else:
-                x = phonenumbers.parse(phone, None)
+                phonenumbers.parse(phone, None)
         except phonenumbers.phonenumberutil.NumberParseException as err:
             db.session.rollback()
             raise AttributeError(phone, 'seems not to be valid:', err)
@@ -1395,7 +1304,7 @@ class OrganizationMembership(Model, SerializerMixin):
             if not mobile:
                 mobile = None
             else:
-                x = phonenumbers.parse(mobile, None)
+                phonenumbers.parse(mobile, None)
         except phonenumbers.phonenumberutil.NumberParseException as err:
             db.session.rollback()
             raise AttributeError(mobile, 'seems not to be valid:', err)
@@ -1403,17 +1312,27 @@ class OrganizationMembership(Model, SerializerMixin):
 
 
 """ watch for insert on Org Memberships """
+
+
 def org_mem_listerner(mapper, connection, org_mem):
     if org_mem.membership_role and org_mem.membership_role.name == 'OrgAdmin':
-        # print(org_mem.membership_role.name,  org_mem.email, org_mem.user.email, org_mem.user._password)
-        # print(org_mem.membership_role.name,  org_mem.email)
-        password = binascii.hexlify(os.urandom(random.randint(6, 8))).decode('ascii') + 'Ba1%'
+        password = binascii.hexlify(os.urandom(random.randint(
+            6, 8))).decode('ascii') + 'Ba1%'
         org_mem.user.password = password
-        send_email('energy-cert account', [org_mem.user.email],
-               'auth/email/ec_activate_account', org_mem=org_mem, new_password=password)
+        send_email(
+            'energy-cert account', [org_mem.user.email],
+            'auth/email/ec_activate_account',
+            org_mem=org_mem,
+            new_password=password)
 
 
-event.listen(OrganizationMembership, 'after_insert', org_mem_listerner, retval=True, propagate=True)
+event.listen(
+    OrganizationMembership,
+    'after_insert',
+    org_mem_listerner,
+    retval=True,
+    propagate=True)
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -1451,16 +1370,17 @@ def load_token(token):
     # server side and not rely on the users cookie to exipre.
 
     max_age = current_app.config['REMEMBER_COOKIE_DURATION'].total_seconds()
-    print("*****",  max_age)
+    print("*****", max_age)
     # Decrypt the Security Token, data = [username, hashpass, id]
     s = URLSafeTimedSerializer(
         current_app.config['SECRET_KEY'],
         salt='user-auth',
-        signer_kwargs=dict(key_derivation='hmac',
-                           digest_method=hashlib.sha256))
+        signer_kwargs=dict(
+            key_derivation='hmac', digest_method=hashlib.sha256))
     from pprint import pprint
     try:
-        (data, timestamp) = s.loads(token, max_age=max_age, return_timestamp=True)
+        (data, timestamp) = s.loads(
+            token, max_age=max_age, return_timestamp=True)
         pprint(data)
         pprint(timestamp)
     except (BadTimeSignature, SignatureExpired):
@@ -1493,9 +1413,8 @@ def load_user_from_request(request):
     if api_key:
         user = User.query.filter_by(api_key=api_key).first()
         if user:
-            current_app.log.warn(
-                "{} logged in using URL parameter".format(user.name)
-            )
+            current_app.log.warn("{} logged in using URL parameter".format(
+                user.name))
             return user
 
     # next, try to login using an API key

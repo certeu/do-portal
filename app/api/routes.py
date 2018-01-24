@@ -17,12 +17,33 @@ from . import api
 
 HTTP_METHODS = [
     # RFC 2616
-    'OPTIONS', 'GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'TRACE', 'CONNECT',
+    'OPTIONS',
+    'GET',
+    'HEAD',
+    'POST',
+    'PUT',
+    'DELETE',
+    'TRACE',
+    'CONNECT',
     # RFC 2518
-    'PROPFIND', 'PROPPATCH', 'MKCOL', 'COPY', 'MOVE', 'LOCK', 'UNLOCK',
+    'PROPFIND',
+    'PROPPATCH',
+    'MKCOL',
+    'COPY',
+    'MOVE',
+    'LOCK',
+    'UNLOCK',
     # RFC 3253
-    'VERSION-CONTROL', 'REPORT', 'CHECKOUT', 'CHECKIN', 'UNCHECKOUT',
-    'MKWORKSPACE', 'UPDATE', 'LABEL', 'MERGE', 'BASELINE-CONTROL',
+    'VERSION-CONTROL',
+    'REPORT',
+    'CHECKOUT',
+    'CHECKIN',
+    'UNCHECKOUT',
+    'MKWORKSPACE',
+    'UPDATE',
+    'LABEL',
+    'MERGE',
+    'BASELINE-CONTROL',
     'MKACTIVITY'
     # RFC 3648
     'ORDERPATCH',
@@ -100,13 +121,12 @@ def submit_gpg_key():
     """
     result = gpg.gnupg.import_keys(request.json['ascii_key'])
     if result.fingerprints:
-        send_to_ks.delay(
-            current_app.config['GPG_KEYSERVERS'][0], result.fingerprints
-        )
+        send_to_ks.delay(current_app.config['GPG_KEYSERVERS'][0],
+                         result.fingerprints)
         return ApiResponse({
             'message': 'Key saved',
-            'fingerprints': [f for f in result.fingerprints]},
-            201)
+            'fingerprints': [f for f in result.fingerprints]
+        }, 201)
     else:
         raise ApiException('The PGP Key could not be imported')
 
@@ -232,8 +252,8 @@ def search_public_ks(email=None):
     """
     if email is None:
         email = request.json['email']
-    keys = gpg.gnupg.search_keys(
-        email, current_app.config['GPG_KEYSERVERS'][1])
+    keys = gpg.gnupg.search_keys(email,
+                                 current_app.config['GPG_KEYSERVERS'][1])
     if not keys:
         raise ApiException('No keys found', 404)
     return ApiResponse({'keys': keys})

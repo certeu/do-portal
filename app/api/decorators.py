@@ -70,36 +70,47 @@ def paginate(f=None, *, max_per_page=20, headers_prefix='DO-'):
     :return: tuple as (response, headers)
     """
     if f is None:
-        return functools.partial(paginate,
-                                 max_per_page=max_per_page,
-                                 headers_prefix=headers_prefix)
+        return functools.partial(
+            paginate, max_per_page=max_per_page, headers_prefix=headers_prefix)
 
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
         page = request.args.get('page', 1, type=int)
-        per_page = min(request.args.get('per_page', max_per_page,
-                                        type=int), max_per_page)
+        per_page = min(
+            request.args.get('per_page', max_per_page, type=int), max_per_page)
         query = f(*args, **kwargs)
         p = query.paginate(page, per_page)
         rv = {'page': page, 'per_page': per_page, 'count': p.total}
         if p.has_prev:
-            rv['prev'] = url_for(request.endpoint, page=p.prev_num,
-                                 per_page=per_page,
-                                 _external=True, **kwargs)
+            rv['prev'] = url_for(
+                request.endpoint,
+                page=p.prev_num,
+                per_page=per_page,
+                _external=True,
+                **kwargs)
         else:
             rv['prev'] = None
         if p.has_next:
-            rv['next'] = url_for(request.endpoint, page=p.next_num,
-                                 per_page=per_page,
-                                 _external=True, **kwargs)
+            rv['next'] = url_for(
+                request.endpoint,
+                page=p.next_num,
+                per_page=per_page,
+                _external=True,
+                **kwargs)
         else:
             rv['next'] = None
-        rv['first'] = url_for(request.endpoint, page=1,
-                              per_page=per_page, _external=True,
-                              **kwargs)
-        rv['last'] = url_for(request.endpoint, page=p.pages,
-                             per_page=per_page, _external=True,
-                             **kwargs)
+        rv['first'] = url_for(
+            request.endpoint,
+            page=1,
+            per_page=per_page,
+            _external=True,
+            **kwargs)
+        rv['last'] = url_for(
+            request.endpoint,
+            page=p.pages,
+            per_page=per_page,
+            _external=True,
+            **kwargs)
         rv['items'] = [item.serialize() for item in p.items]
         headers = {
             headers_prefix + 'Page-Current': page,
@@ -116,6 +127,7 @@ def async(f):
     def wrapper(*args, **kwargs):
         t = Thread(target=f, args=args, kwargs=kwargs)
         t.start()
+
     return wrapper
 
 
@@ -124,6 +136,7 @@ _limiter = None
 
 class MemRateLimit(object):
     """Rate limiter that uses a Python dictionary as storage."""
+
     def __init__(self):
         self.counters = {}
 
@@ -169,6 +182,7 @@ def rate_limit(limit, period):
     :param period:
     :param limit:
     """
+
     def decorator(f):
         @functools.wraps(f)
         def wrapped(*args, **kwargs):
@@ -181,8 +195,7 @@ def rate_limit(limit, period):
             # the IP address of the client. Rate limiting counters are
             # maintained on each unique key.
             key = '{0}/{1}'.format(f.__name__, request.remote_addr)
-            allowed, remaining, reset = _limiter.is_allowed(key, limit,
-                                                            period)
+            allowed, remaining, reset = _limiter.is_allowed(key, limit, period)
 
             # set the rate limit headers in g, so that they are picked up
             # by the after_request handler and attached to the response
@@ -195,15 +208,22 @@ def rate_limit(limit, period):
             # if the client went over the limit respond with a 429 status
             # code, else invoke the wrapped function
             if not allowed:
-                response = jsonify(
-                    {'status': 429, 'error': 'too many requests',
-                     'message': 'You have exceeded your request rate'})
+                response = jsonify({
+                    'status':
+                    429,
+                    'error':
+                    'too many requests',
+                    'message':
+                    'You have exceeded your request rate'
+                })
                 response.status_code = 429
                 return response
 
             # else we let the request through
             return f(*args, **kwargs)
+
         return wrapped
+
     return decorator
 
 
@@ -216,19 +236,24 @@ def api_deprecated(new_endpoint, message='This endpoint is deprecated.'):
     :return:
     :rtype: func
     """
+
     def decorator(f):
         @functools.wraps(f)
         def wrapped(*args, **kwargs):
             response = jsonify({
-                'message': message,
-                'endpoint': url_for(new_endpoint, _external=True)
+                'message':
+                message,
+                'endpoint':
+                url_for(new_endpoint, _external=True)
             })
             # response = jsonify(rv)
             response.status_code = 301
             response.headers['DO-New-Endpoint'] = \
                 url_for(new_endpoint, _external=True)
             return response
+
         return wrapped
+
     return decorator
 
 
@@ -239,7 +264,9 @@ def permission_required(permission):
             if not current_user.can(permission):
                 abort(403)
             return f(*args, **kwargs)
+
         return wrapped
+
     return decorator
 
 
@@ -254,11 +281,15 @@ def needs_admin(f):
         if not admin_id:
             abort(403)
         return f(*args, **kwargs)
+
     return wrapped
 
 
-def crossdomain(origin=None, methods=None, headers=None,
-                max_age=21600, attach_to_all=True,
+def crossdomain(origin=None,
+                methods=None,
+                headers=None,
+                max_age=21600,
+                attach_to_all=True,
                 automatic_options=True):
     """Add CORS headers to response. Courtesy of Armin Ronacher.
 
@@ -315,4 +346,5 @@ def crossdomain(origin=None, methods=None, headers=None,
 
         f.provide_automatic_options = False
         return functools.update_wrapper(wrapped_function, f)
+
     return decorator

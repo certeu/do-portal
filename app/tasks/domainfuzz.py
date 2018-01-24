@@ -48,9 +48,12 @@ def augment(domain, url, parent_fqdn_id, checks):
     augmenter = Augmenter(domain, url, **checks)
     result = augmenter.augment()
     if result.any(['dns_a', 'dns_ns']) and domain.fuzzer != 'Original*':
-        d = Typosquat(fqdn_id=parent_fqdn_id, fqdn=domain.name,
-                      dns_a=domain.dns_a, dns_ns=domain.dns_ns,
-                      dns_mx=domain.dns_mx,
-                      raw=json.dumps(domain.__dict__))
+        d = Typosquat(
+            fqdn_id=parent_fqdn_id,
+            fqdn=domain.name,
+            dns_a=domain.dns_a,
+            dns_ns=domain.dns_ns,
+            dns_mx=domain.dns_mx,
+            raw=json.dumps(domain.__dict__))
         db.session.add(d)
         db.session.commit()

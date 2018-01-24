@@ -119,5 +119,7 @@ def get_file(file_id):
             filter(cond).filter_by(is_sla=0)
     dfile = deliverable_query.first_or_404()
     cfg = current_app.config
-    return send_file(os.path.join(cfg['APP_UPLOADS'], dfile.name),
-                     attachment_filename=dfile.name, as_attachment=True)
+    return send_file(
+        os.path.join(cfg['APP_UPLOADS'], dfile.name),
+        attachment_filename=dfile.name,
+        as_attachment=True)

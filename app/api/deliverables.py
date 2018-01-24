@@ -141,9 +141,12 @@ def add_deliverable():
     db.session.add(g)
     db.session.commit()
     return ApiResponse(
-        {'deliverable': g.serialize(), 'message': 'Deliverable added'},
-        201,
-        {'Location': url_for('api.get_deliverable', deliverable_id=g.id)})
+        {
+            'deliverable': g.serialize(),
+            'message': 'Deliverable added'
+        }, 201, {
+            'Location': url_for('api.get_deliverable', deliverable_id=g.id)
+        })
 
 
 @api.route('/deliverables/<int:deliverable_id>', methods=['PUT'])
@@ -190,9 +193,7 @@ def update_deliverable(deliverable_id):
     :status 200: Deliverable was successfully updated
     :status 400: Bad request
     """
-    g = Deliverable.query.filter(
-        Deliverable.id == deliverable_id
-    ).first()
+    g = Deliverable.query.filter(Deliverable.id == deliverable_id).first()
     if not g:
         return redirect(url_for('api.add_deliverable'))
     g.from_json(request.json)
@@ -235,8 +236,7 @@ def delete_deliverable(deliverable_id):
     :status 404: Deliverable was not found
     """
     g = Deliverable.query.filter(
-        Deliverable.id == deliverable_id
-    ).first_or_404()
+        Deliverable.id == deliverable_id).first_or_404()
 
     g.deleted = 1
     db.session.add(g)

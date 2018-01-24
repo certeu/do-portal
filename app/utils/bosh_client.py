@@ -62,7 +62,12 @@ class BOSHClient(object):
     bosh_service = None
     request_session = None
 
-    def __init__(self, jabberid, password, bosh_service, hold=1, wait=60,
+    def __init__(self,
+                 jabberid,
+                 password,
+                 bosh_service,
+                 hold=1,
+                 wait=60,
                  logger=None):
         """
 
@@ -215,9 +220,8 @@ class BOSHClient(object):
             if auth['mechanism'] == 'PLAIN':
                 auth_str = self.build_auth_string_plain()
                 auth_text_elm = self.build_text(auth_str)
-                auth_elm = self.build_element('auth',
-                                              child=auth_text_elm,
-                                              attrs=auth)
+                auth_elm = self.build_element(
+                    'auth', child=auth_text_elm, attrs=auth)
                 body_auth = self.build_body(child=auth_elm)
                 retb, _ = self.send_body(body_auth)
                 sucs = retb.getElementsByTagName('success')
@@ -236,8 +240,8 @@ class BOSHClient(object):
                         if self.jabberid.resource:
                             resource_text = \
                                 self.build_text(self.jabberid.resource)
-                            resource = self.build_element('resource',
-                                                          child=resource_text)
+                            resource = self.build_element(
+                                'resource', child=resource_text)
                             bind_elm.appendChild(resource)
                         iq = {}
                         iq['xmlns'] = 'jabber:client'

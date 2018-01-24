@@ -229,9 +229,12 @@ def add_vulnerability():
     db.session.add(v)
     db.session.commit()
     return ApiResponse(
-        {'vulnerability': v.serialize(), 'message': 'Vulnerability added'},
-        201,
-        {'Location': url_for('api.get_vulnerability', vuln_id=v.id)})
+        {
+            'vulnerability': v.serialize(),
+            'message': 'Vulnerability added'
+        }, 201, {
+            'Location': url_for('api.get_vulnerability', vuln_id=v.id)
+        })
 
 
 @api.route('/vulnerabilities/<int:vuln_id>', methods=['PUT'])
@@ -393,9 +396,7 @@ def test_vulnerability(vuln_id):
     """
     g = Vulnerability.query.get_or_404(vuln_id)
     g.tested = datetime.datetime.now()
-    rc, status_code = check_patched(g.request_method,
-                                    g.url,
-                                    g.request_data,
+    rc, status_code = check_patched(g.request_method, g.url, g.request_data,
                                     g.check_string)
 
     if rc == 1:
