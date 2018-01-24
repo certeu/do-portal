@@ -62,14 +62,27 @@ XO4+RzfwT2QN7MgwvQsDaQm9Y3MHXDgRW9IG18hHwq3VbZX2DJjHf0yeiQbeKmoc7qQ9xcqr
 
 
 def test_search_key(client, monkeypatch):
-    k = {'algo': '1', 'date': '1353431464', 'expires': '',
-         'keyid': '480183F5942E91953F377D6C64CDC60B16E645C6',
-         'length': '2048', 'type': 'pub',
-         'uids': ['Vicente Prueba <vicente.prueba@test.com>',
-                  'Vicente Revuelto <vrevuelto@cert.europa.eu>']}
+    k = {
+        'algo':
+        '1',
+        'date':
+        '1353431464',
+        'expires':
+        '',
+        'keyid':
+        '480183F5942E91953F377D6C64CDC60B16E645C6',
+        'length':
+        '2048',
+        'type':
+        'pub',
+        'uids': [
+            'Vicente Prueba <vicente.prueba@test.com>',
+            'Vicente Revuelto <vrevuelto@cert.europa.eu>'
+        ]
+    }
     monkeypatch.setattr(gpg.gnupg, 'search_keys', lambda q, ks: [k])
-    rv = client.post(url_for('api.search_public_ks'),
-                     json=dict(email='test@domain.tld'))
+    rv = client.post(
+        url_for('api.search_public_ks'), json=dict(email='test@domain.tld'))
     assert_msg(rv, key='keys')
 
 
@@ -94,6 +107,5 @@ responses = [(ir, 201), (MagicMock(fingerprints=None), 400)]
 @pytest.mark.parametrize('mock, status_code', responses)
 def test_send_keys(client, monkeypatch, mock, status_code):
     monkeypatch.setattr(gpg.gnupg, 'import_keys', lambda k: mock)
-    rv = client.post(url_for('api.submit_gpg_key'),
-                     json=dict(ascii_key=pk))
+    rv = client.post(url_for('api.submit_gpg_key'), json=dict(ascii_key=pk))
     assert rv.status_code == status_code

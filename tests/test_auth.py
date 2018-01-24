@@ -9,8 +9,7 @@ from app.models import User
 def test_login_logout(client):
     rv = client.post(
         url_for('auth.login'),
-        json=dict(email=client.test_user.email,
-                  password='1e9c9525ef737'))
+        json=dict(email=client.test_user.email, password='1e9c9525ef737'))
     assert rv.status_code == 200
 
 
@@ -19,10 +18,7 @@ def test_verify_totp(client, monkeypatch):
                         lambda u, a: (client.test_user, True))
     client.application.config['CP_WEB_ROOT'] = 'http://localhost'
     client.test_user.otp_enabled = True
-    rv = client.post(
-        url_for('auth.verify_totp'),
-        json=dict(totp=123456)
-    )
+    rv = client.post(url_for('auth.verify_totp'), json=dict(totp=123456))
     assert rv.status_code == 200
 
 
@@ -30,9 +26,7 @@ def test_verify_totp(client, monkeypatch):
                          [(True, 200), (False, 200), ('666', 422), (123, 422)])
 def test_toggle_2fa(client, toggle, expected_response):
     rv = client.post(
-        url_for('auth.toggle_2fa'),
-        json=dict(totp=123456, otp_toggle=toggle)
-    )
+        url_for('auth.toggle_2fa'), json=dict(totp=123456, otp_toggle=toggle))
     assert rv.status_code == expected_response
 
 
@@ -78,46 +72,48 @@ def test_set_password(client):
     rv = client.post(
         url_for('auth.set_password', token=token),
         follow_redirects=True,
-        json=dict(password='e9c9525ef737',
-                  confirm_password='e9c9525ef737'))
+        json=dict(password='e9c9525ef737', confirm_password='e9c9525ef737'))
     assert rv.status_code == 200
 
 
 changepw_params = [
-    ({'current_password': 'not-old-pass',
-      'new_password': 'changedpass',
-      'confirm_password': 'changedpass'}, 'Invalid current password', 400),
-    ({'current_password': 'e9c9525ef737',
-      'new_password': 'changedpass',
-      'confirm_password': 'changedpassmiss'},
-     'Confirmation password does not match', 400),
-    ({'current_password': 'e9c9525ef737',
-      'new_password': 'changedpass',
-      'confirm_password': 'changedpass'},
-     'Your password has been updated', 200),
+    ({
+        'current_password': 'not-old-pass',
+        'new_password': 'changedpass',
+        'confirm_password': 'changedpass'
+    }, 'Invalid current password', 400),
+    ({
+        'current_password': 'e9c9525ef737',
+        'new_password': 'changedpass',
+        'confirm_password': 'changedpassmiss'
+    }, 'Confirmation password does not match', 400),
+    ({
+        'current_password': 'e9c9525ef737',
+        'new_password': 'changedpass',
+        'confirm_password': 'changedpass'
+    }, 'Your password has been updated', 200),
 ]
 
 
 @pytest.mark.parametrize('post_data, msg, status_code', changepw_params)
 def test_change_password(client, post_data, msg, status_code):
-    rv = client.post(
-        url_for('auth.change_password'),
-        json=post_data
-    )
+    rv = client.post(url_for('auth.change_password'), json=post_data)
     assert_msg(rv, key='message', value=msg, response_code=status_code)
 
 
 def test_reg_unreg_cp_account(client):
     rv = client.post(
         url_for('auth.register'),
-        json=dict(organization_id=1, name='some',
-                  email='some@other7e405fa08adb709.com')
-    )
+        json=dict(
+            organization_id=1,
+            name='some',
+            email='some@other7e405fa08adb709.com'))
     assert rv.status_code == 201
 
     rv = client.post(
         url_for('auth.unregister'),
-        json=dict(organization_id=1, name='some',
-                  email='some@other7e405fa08adb709.com')
-    )
+        json=dict(
+            organization_id=1,
+            name='some',
+            email='some@other7e405fa08adb709.com'))
     assert rv.status_code == 200

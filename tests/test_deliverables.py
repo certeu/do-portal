@@ -5,17 +5,14 @@ from .conftest import assert_msg
 
 def test_create_deliverable(client):
     rv = client.post(
-        url_for('api.add_deliverable'),
-        json=dict(name='Sample deliverable')
-    )
+        url_for('api.add_deliverable'), json=dict(name='Sample deliverable'))
     assert_msg(rv, value='Deliverable added', response_code=201)
 
 
 def test_update_deliverable(client):
     rv = client.put(
         url_for('api.update_deliverable', deliverable_id=1),
-        json=dict(name='Sample deliverable updated')
-    )
+        json=dict(name='Sample deliverable updated'))
     assert rv.status_code == 200
 
 
@@ -38,8 +35,7 @@ def test_delete_deliverable(client):
 def test_create_file(client):
     rv = client.post(
         url_for('api.add_file'),
-        json=dict(files=['file.ext', 'file2.ext'], deliverable_id=1)
-    )
+        json=dict(files=['file.ext', 'file2.ext'], deliverable_id=1))
     assert_msg(rv, value='Files added', response_code=201)
 
 

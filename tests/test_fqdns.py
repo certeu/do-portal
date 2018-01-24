@@ -6,16 +6,14 @@ from .conftest import assert_msg
 def test_create_fqdn(client):
     rv = client.post(
         url_for('api.add_fqdn'),
-        json=dict(fqdn='cert.europa.eu', organization_id=1)
-    )
+        json=dict(fqdn='cert.europa.eu', organization_id=1))
     assert_msg(rv, value='Fqdn added', response_code=201)
 
 
 def test_update_fqdn(client):
     rv = client.put(
         url_for('api.update_fqdn', fqdn_id=1),
-        json=dict(fqdn='cert.europa.eu', organization_id=1)
-    )
+        json=dict(fqdn='cert.europa.eu', organization_id=1))
     assert rv.status_code == 200
 
 

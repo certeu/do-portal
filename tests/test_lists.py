@@ -7,7 +7,6 @@ from unittest.mock import Mock, MagicMock
 from app.models import MailmanQuery, MailmanList, MailmanDomain
 from app import mail, gpg
 
-
 testlist = 'test-' + str(random.choice(range(666)))
 testlistid = '{}.{}'.format(testlist, 'lists.cert.europa.eu')
 
@@ -19,7 +18,6 @@ class MockMember(dict):
 
 
 class MockSettings(dict):
-
     def save(self):
         pass
 
@@ -45,7 +43,6 @@ class MockList:
 
 
 class MockDomain:
-
     def create_list(self, name):
         return MockList()
 
@@ -55,22 +52,19 @@ def test_create_list(client, monkeypatch):
 
     rv = client.post(
         url_for('api.add_list'),
-        json=dict(name=testlist, description='Test list {}'.format(testlist))
-    )
+        json=dict(name=testlist, description='Test list {}'.format(testlist)))
     assert_msg(rv, value='List added', response_code=201)
 
 
-update_params = [
-    (dict(name='updated', settings=dict(description='updated')), 200),
-    (dict(settings=dict(description='updated')), 422)
-]
+update_params = [(dict(name='updated', settings=dict(description='updated')),
+                  200), (dict(settings=dict(description='updated')), 422)]
 
 
 @pytest.mark.parametrize('post_data, status_code', update_params)
 def test_update_list(client, monkeypatch, post_data, status_code):
     monkeypatch.setattr(MailmanList, 'get', lambda **kw: MockList())
-    rv = client.put(url_for('api.update_list', list_id=testlistid),
-                    json=post_data)
+    rv = client.put(
+        url_for('api.update_list', list_id=testlistid), json=post_data)
     assert rv.status_code == status_code
 
 
@@ -110,14 +104,11 @@ def test_unsubscribe_list(client, monkeypatch):
 
 
 def post_params():
-    combos = ((False, False, 200),
-              (True, False, 400),
-              (True, True, 200))
+    combos = ((False, False, 200), (True, False, 400), (True, True, 200))
     for enc, ok, s in combos:
-        yield (dict(list_id=testlistid, subject='zZz',
-                    content='ž', encrypted=enc),
-               MagicMock(ok=ok),
-               s)
+        yield (dict(
+            list_id=testlistid, subject='zZz', content='ž', encrypted=enc),
+            MagicMock(ok=ok), s)
 
 
 @pytest.mark.parametrize('post_data, cryptmock, status_code', post_params())

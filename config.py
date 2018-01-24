@@ -230,8 +230,6 @@ class DevelConfig(Config):
     DEBUG = True
     TRAP_BAD_REQUEST_ERRORS = True
     ASSETS_DEBUG = True
-    SQLALCHEMY_ECHO = False
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'devkey'
     WTF_CSRF_ENABLED = False
     WTF_CSRF_SECRET_KEY = os.environ.get('WTF_CSRF_SECRET_KEY') or 'devkey'
     SQLALCHEMY_DATABASE_URI = ''
@@ -244,14 +242,16 @@ class TestingConfig(Config):
     SERVER_NAME = 'localhost'
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'do-testing'
     WTF_CSRF_ENABLED = False
-    SQLALCHEMY_DATABASE_URI = 'postgresql://dope_test:dope_test@localhost:5432/dope_test'
+    SQLALCHEMY_DATABASE_URI = \
+        'postgresql://dope_test:dope_test@localhost:5432/dope_test'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     BROKER_URL = ''
     CELERY_BACKEND = ''
     CELERY_ALWAYS_EAGER = True
     LDAP_AUTH_ENABLED = True
     BOSH_ENABLED = True
-    MAIL_DEFAULT_SENDER='testing@test.at'
+    MAIL_DEFAULT_SENDER = 'testing@test.at'
+
 
 class ProductionConfig(Config):
     JSON_AS_ASCII = False

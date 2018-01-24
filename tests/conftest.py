@@ -14,15 +14,14 @@ from app.models import Organization, ContactEmail, MembershipRole, Country
 from app.utils import bosh_client
 from app.fixtures import testfixture
 
-class TestResponse(Response):
 
+class TestResponse(Response):
     @property
     def json(self):
         return json.loads(self.data.decode('utf-8'))
 
 
 class TestClient(FlaskClient):
-
     @property
     def api_user(self):
         return self._api_user
@@ -38,8 +37,10 @@ class TestClient(FlaskClient):
             kwargs['data'] = json.dumps(kwargs.pop('json'))
 
         api_user = self.api_user or self.test_user
-        kwargs['headers'].update({'API-Authorization': api_user.api_key,
-                                  'Accept': 'application/json'})
+        kwargs['headers'].update({
+            'API-Authorization': api_user.api_key,
+            'Accept': 'application/json'
+        })
         if 'content_type' not in kwargs:
             kwargs['content_type'] = 'application/json'
 
@@ -71,7 +72,8 @@ def db(request, app):
     user = User.query.filter_by(name="certmaster").first()
     TestClient.test_user = user
     TestClient._api_user = user
-    TestClient.test_user.organization_id = Organization.query.filter_by(abbreviation='cert').first().id
+    TestClient.test_user.organization_id = Organization.query.filter_by(
+        abbreviation='cert').first().id
     app.test_client_class = TestClient
     app.response_class = TestResponse
 
@@ -100,13 +102,12 @@ def addsampledata(client):
     o = Organization(
         abbreviation="CERT-EU",
         full_name="Computer Emergency Response Team for EU "
-                  "Institutions Agencies and Bodies",
+        "Institutions Agencies and Bodies",
         ip_ranges=['212.8.189.16/28'],
         abuse_emails=['cert-eu@ec.europa.eu'],
         contact_emails=[ContactEmail(email='cert-eu@ec.europa.eu')],
         asns=[5400],
-        fqdns=['cert.europa.eu']
-    )
+        fqdns=['cert.europa.eu'])
     _db.session.add(o)
     _db.session.commit()
     # ?? client.test_user.organization_id = o.id
@@ -130,7 +131,6 @@ def valid_totp(monkeypatch):
 @pytest.fixture(autouse=True)
 def fake_bosh(monkeypatch):
     class FakeBOSHClient(object):
-
         def __init__(self, username, password, service):
             self.jid = 'test@abusehelperlab.cert.europa.eu/test-666'
             self.rid = 4387476
@@ -158,8 +158,13 @@ def malware_sample():
         ['data', 'filename', 'md5', 'sha1', 'sha256', 'sha512', 'ctph'])
 
     sample = Sample(
-        data='sampledata', filename='blah.zip', md5=md5_hash, sha1=sha1_hash,
-        sha256=sha256_hash, sha512=sha512_hash, ctph=ctph)
+        data='sampledata',
+        filename='blah.zip',
+        md5=md5_hash,
+        sha1=sha1_hash,
+        sha256=sha256_hash,
+        sha512=sha512_hash,
+        ctph=ctph)
     return sample
 
 

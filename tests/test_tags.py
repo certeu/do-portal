@@ -4,28 +4,19 @@ from .conftest import assert_msg
 
 
 def test_create_tag(client):
-    rv = client.post(
-        url_for('api.add_tag'),
-        json=dict(name='Boobo')
-    )
+    rv = client.post(url_for('api.add_tag'), json=dict(name='Boobo'))
     assert_msg(rv, value='Tag added', response_code=201)
 
 
 def test_update_tag(client):
     rv = client.put(
-        url_for('api.update_tag', tag_id=1),
-        json=dict(name='Yoggy')
-    )
+        url_for('api.update_tag', tag_id=1), json=dict(name='Yoggy'))
     assert rv.status_code == 200
 
 
 def test_read_tag(client):
     rv = client.get(url_for('api.get_tags'))
-<<<<<<< HEAD
     assert_msg(rv, key='tags')
-=======
-    assert_msg(rv, key='items')
->>>>>>> topic-postgres
 
     rv = client.get(url_for('api.get_tag', tag_id=1))
     assert_msg(rv, key='name')
