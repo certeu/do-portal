@@ -11,14 +11,11 @@ def test_create_user(client):
     rv = client.post(
         url_for('cp.add_cp_user'),
         json=dict(
-            user=dict(email='mylogin@mydomain.at',
-                      name='Max Muster'),
+            user=dict(email='mylogin@mydomain.at', name='Max Muster'),
             organization_membership=dict(
                 membership_role_id=orgadmin_role_id,
                 organization_id=org_id,
-                email='orgmail@someorg.at')
-        )
-    )
+                email='orgmail@someorg.at')))
     assert_msg(rv, value='User added', response_code=201)
     rv_user = rv.json['user']
     rv_membership = rv.json['organization_membership']
@@ -35,14 +32,11 @@ def test_create_user_with_invalid_email(client):
     rv = client.post(
         url_for('cp.add_cp_user'),
         json=dict(
-            user=dict(email='foobar',
-                      name='Max Muster'),
+            user=dict(email='foobar', name='Max Muster'),
             organization_membership=dict(
                 membership_role_id=orgadmin_role_id,
                 organization_id=org_id,
-                email='orgmail@someorg.at')
-        )
-    )
+                email='orgmail@someorg.at')))
     assert rv.status_code == 422
 
 
@@ -52,9 +46,11 @@ def test_return_certmaster_orgs(client):
     assert_msg(rv, key='organizations')
     got = list(rv.json.values())
     got_abbreviations = [i['abbreviation'] for i in got[0]]
-    expect_abbreviations = ['cert', 'eorg', 'eorg-gas', 'eorg-electricity',
-                            'energyorg', 'energyorg-gas', 'energyorg-electricity',
-                            'energyorg-electricity-transmission']
+    expect_abbreviations = [
+        'cert', 'eorg', 'eorg-gas', 'eorg-electricity', 'energyorg',
+        'energyorg-gas', 'energyorg-electricity',
+        'energyorg-electricity-transmission'
+    ]
     assert set(got_abbreviations) == set(expect_abbreviations)
 
 
@@ -64,8 +60,10 @@ def test_return_energyorg_admin_orgs(client):
     assert_msg(rv, key='organizations')
     got = list(rv.json.values())
     got_abbreviations = [i['abbreviation'] for i in got[0]]
-    expect_abbreviations = ['energyorg', 'energyorg-gas', 'energyorg-electricity',
-                            'energyorg-electricity-transmission']
+    expect_abbreviations = [
+        'energyorg', 'energyorg-gas', 'energyorg-electricity',
+        'energyorg-electricity-transmission'
+    ]
     assert set(got_abbreviations) == set(expect_abbreviations)
 
 

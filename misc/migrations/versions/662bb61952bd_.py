@@ -15,10 +15,8 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.add_column(
-        'vulnerabilities',
-        sa.Column('test_type', sa.Enum('request'), nullable=True)
-    )
+    op.add_column('vulnerabilities',
+                  sa.Column('test_type', sa.Enum('request'), nullable=True))
 
 
 def downgrade():

@@ -5,16 +5,14 @@ from .conftest import assert_msg
 def test_create_ip_range(client):
     rv = client.post(
         url_for('api.add_ip_range'),
-        json=dict(ip_range='1.2.3.4/24', organization_id=1)
-    )
+        json=dict(ip_range='1.2.3.4/24', organization_id=1))
     assert_msg(rv, value='IP range added', response_code=201)
 
 
 def test_update_ip_range(client):
     rv = client.put(
         url_for('api.update_ip_range', range_id=1),
-        json=dict(ip_range='4.3.2.1/24', organization_id=1)
-    )
+        json=dict(ip_range='4.3.2.1/24', organization_id=1))
     assert rv.status_code == 200
 
 

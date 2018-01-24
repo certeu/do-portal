@@ -12,17 +12,14 @@ def test_create_vulnerability(client):
             reporter_name='Yoggy',
             reporter_email='yoggy@hear-me-roar.frst',
             rtir_id=666,
-            types=['XSS', 'berries']
-        ),
+            types=['XSS', 'berries']),
     )
     assert_msg(rv, key='vulnerability', response_code=201)
 
 
 def test_update_vulnerability(client):
     rv = client.put(
-        url_for('api.update_vulnerability', vuln_id=1),
-        json=dict()
-    )
+        url_for('api.update_vulnerability', vuln_id=1), json=dict())
     assert rv.status_code == 422
 
     rv = client.put(
@@ -34,8 +31,7 @@ def test_update_vulnerability(client):
             reporter_name='Yoggy',
             reporter_email='yoggy@hear-me-roar.frst',
             rtir_id=666,
-            types=['XSS', 'cherries']
-        ),
+            types=['XSS', 'cherries']),
     )
     assert rv.status_code == 200
 

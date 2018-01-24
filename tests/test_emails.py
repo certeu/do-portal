@@ -7,27 +7,22 @@ import pytest
 
 def test_create_email(client):
     rv = client.post(
-        url_for('api.add_email'),
-        json=dict(email='new@cert.europa.eu')
-    )
+        url_for('api.add_email'), json=dict(email='new@cert.europa.eu'))
     assert rv.status_code == 404
 
 
 def test_update_email(client):
     rv = client.put(
         url_for('api.update_email', email_id=1),
-        json=dict(email='updated@cert.europa.eu')
-    )
+        json=dict(email='updated@cert.europa.eu'))
     assert rv.status_code == 200
 
 
 def test_read_emails(client, monkeypatch):
-    users = MagicMock(
-        addresses=[
-            MagicMock(__str__=lambda x: 'some-mail@ec.europa.eu'),
-            MagicMock(__str__=lambda x: 'blahblah@domain.tld')
-        ]
-    )
+    users = MagicMock(addresses=[
+        MagicMock(__str__=lambda x: 'some-mail@ec.europa.eu'),
+        MagicMock(__str__=lambda x: 'blahblah@domain.tld')
+    ])
     monkeypatch.setattr(MailmanUser.query, 'all', lambda: [users])
     rv = client.get(url_for('api.get_emails'))
     assert_msg(rv, key='emails')

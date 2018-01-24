@@ -8,8 +8,7 @@ def test_return_countries(client):
     got = list(rv.json.values())
     some_entry = got[0][0]
 
-    rv = client.get(url_for('cp.get_cp_country',
-                    country_id=some_entry['id']))
+    rv = client.get(url_for('cp.get_cp_country', country_id=some_entry['id']))
     assert_msg(rv, key='cc')
     got = list(rv.json.values())
     single_entry = rv.json

@@ -23,8 +23,7 @@ def test_add_sample(client, malware_sample):
     rv = client.post(
         url_for('api.add_sample'),
         data=dict(file=(BytesIO(), malware_sample.filename)),
-        content_type='multipart/form-data'
-    )
+        content_type='multipart/form-data')
     assert rv.status_code == 201
 
 

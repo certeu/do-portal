@@ -3,6 +3,7 @@ from app.models import User, Organization, MembershipRole, \
 from app import db
 import datetime
 import pytest
+
 # from .conftest import assert_msg
 # from app.fixtures import testfixture
 
@@ -82,7 +83,6 @@ def test_create_user():
         'energyorg admin may not handle cert org'
     assert admin.may_handle_organization(org) is True
 
-
     role = MembershipRole.query.filter_by(name='CISO').first()
     with pytest.raises(AttributeError):
         oxu = OrganizationMembership(
@@ -95,8 +95,7 @@ def test_create_user():
             pgp_key_fingerprint='ADFEFEF123123',
             pgp_key='asdasasfasfasf',
             smime='asdasdasd',
-            coc=b'asasda'
-        )
+            coc=b'asasda')
     oxu = OrganizationMembership(
         phone='+123214711',
         mobile='+12321312',
@@ -108,17 +107,17 @@ def test_create_user():
         pgp_key_fingerprint='ADFEFEF123123',
         pgp_key='asdasasfasfasf',
         smime='asdasdasd',
-        coc=b'asasda'
-    )
+        coc=b'asasda')
     db.session.commit()
     assert oxu.id > 0, 'OrganizationMembership written'
     assert len(admin.get_users()) == 4, 'EnergyOrg Admin now has 4 users'
     App.user = newuser
 
+
 def test_create_user_with_duplicate_email():
     newuser = User(name=App.username)
     with pytest.raises(AttributeError):
-         newuser.email = 'test@bla.com'
+        newuser.email = 'test@bla.com'
 
 
 def test_login():
@@ -145,8 +144,9 @@ def test_login():
     #     list(map(lambda org: org.full_name, admin.get_organizations()))
     full_names = [org.full_name for org in admin.get_organizations()]
     full_names.sort()
-    assert full_names == ['energyorg', 'energyorg-electricity',\
-                          'energyorg-electricity-transmission', 'energyorg-gas'], \
+    assert full_names == ['energyorg', 'energyorg-electricity',
+                          'energyorg-electricity-transmission',
+                          'energyorg-gas'], \
         'correct list of orgs for energyorg'
 
 

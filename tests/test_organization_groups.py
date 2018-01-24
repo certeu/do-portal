@@ -5,18 +5,14 @@ from .conftest import assert_msg
 def test_create_group(client):
     rv = client.post(
         url_for('api.add_group'),
-        json=dict(name='Test Group',
-                  color='#ffffff')
-    )
+        json=dict(name='Test Group', color='#ffffff'))
     assert_msg(rv, value='Group added', response_code=201)
 
 
 def test_update_group(client):
     rv = client.put(
         url_for('api.update_group', group_id=1),
-        json=dict(name='Test Group updated',
-                  color='#ffff00')
-    )
+        json=dict(name='Test Group updated', color='#ffff00'))
     assert rv.status_code == 200
 
 
