@@ -1,0 +1,76 @@
+from celery.schedules import crontab
+from datetime import timedelta
+# local configuration, overrides defaults from config.py
+# CAUTION! Changing the secret key will invalidate all encrypted data
+# E.i. user passwords, login tokens, session cookies
+SECRET_KEY = "sB45#}\"So%TGY5jtq[^/uLq$}?4',`QdiKM_a3h*#/T9"
+# SERVER_NAME = "doportal"
+REMEMBER_COOKIE_SECURE = False
+REMEMBER_COOKIE_HTTPONLY = True
+SESSION_FS_STORAGE = "/tmp"
+SESSION_PROTECTION = "strong"
+# Audit log
+SYSLOG_HOST = None
+SYSLOG_PORT = None
+LOG_DIR = '/Users/marcel/Documents/code/cert/do-portal/logs'
+PG_KEYCHAIN_PATH = "/Users/marcel/Documents/code/cert/do-portal/.gnupg"
+GPG_HOME = "/Users/marcel/Documents/code/cert/do-portal/.gnupg"
+GPG_BINARY = "/usr/local/bin/gpg"
+GPG_KEYSERVERS = ['pgp.mit.edu']
+# local mailserver will relay everything to 10.1.1.101
+MAIL_SERVER = '127.0.0.1'
+MAIL_PORT = 25
+MAIL_USE_TLS = False
+MAIL_USE_SSL = False
+MAIL_USERNAME = 'noreply@doportal'
+MAIL_PASSWORD = None
+MAIL_DEFAULT_SENDER = 'noreply@doportal'
+SQLALCHEMY_DATABASE_URI = 'postgresql://do_portal:do_portal@localhost:5432/do_portal'
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+CELERY_BROKER_URL = "amqp://doportal:doportal@127.0.0.1/doportal_vhost"
+BROKER_URL = "amqp://doportal:doportal@127.0.0.1/doportal_vhost"
+CELERY_RESULT_BACKEND = 'db+postgresql://do_portal:do_portal@127.0.0.1/do_portal'
+CELERY_ACCEPT_CONTENT = ['pickle', 'json', 'msgpack', 'yaml']
+CELERY_IMPORTS = ['app.tasks', 'app.tasks.domainfuzz']
+MAILMAN_REST_API_URL = 'http://127.0.0.1:8001'
+MAILMAN_REST_API_USER = 'admin'
+MAILMAN_REST_API_PASS = 'MailManSecret0909123'
+# we use only one domain, make sure it exists on mailman
+MAILMAN_DOMAIN = 'doportal@doportal'
+MAILMAN_ADMIN = 'admin@admin'
+LDAP_AUTH_ENABLED = False
+LDAP_HOST = ''
+LDAP_BASE_DN = ''
+LDAP_USER_DN = ''
+LDAP_SEARCH_FOR_GROUPS = False
+LDAP_BIND_USER_DN = ''
+LDAP_BIND_USER_PASSWORD = 'X'
+LDAP_USER_LOGIN_ATTR = 'sAMAccountName'
+# BOSH configuration
+BOSH_ENABLED = False
+BOSH_SERVICE = "https://doportal/bosh"
+CP_BOSH_SERVICE = "https://doportal/bosh"
+JID = ""  # append customer resource
+#: Jabber password
+JPASS = ""
+#: Rooms to join
+ROOMS = ["investigation@conference.doportal","investigation.private@conference.doportal"]
+CP_ROOMS = ["investigation@conference.doportal"]
+# AV engines
+AVSCAN_CONFIG = "/Users/marcel/Documents/code/cert/do-portal/config.av.cfg"
+# VxStream sandbox configuration
+REST_CLIENT_VX_BASE_URL = 'http://doportal'
+REST_CLIENT_VX_API_KEY = ''
+REST_CLIENT_VX_API_SECRET = ''
+# FireEye
+REST_CLIENT_FIREEYE_BASE_URL = 'http://doportal'
+REST_CLIENT_FIREEYE_USERNAME = 'api_service'
+REST_CLIENT_FIREEYE_API_SECRET = ''
+CELERYBEAT_SCHEDULE = {
+    # Run domain fuzzer every day at 20:42
+    'fuzz-domains': {
+        'task': 'app.tasks.domainfuzz.fuzz_all',
+        'schedule': crontab(hour=20, minute=42)
+    }
+}
+

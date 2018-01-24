@@ -15,6 +15,7 @@ def test_get_samples(client):
 
 def test_get_sample(client):
     rv = client.get(url_for('api.get_sample', digest=1))
+    # topic-postgres # rv = client.get(url_for('api.get_sample', sha256=1))
     assert rv.status_code == 404
 
 

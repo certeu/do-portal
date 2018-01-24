@@ -1,0 +1,13 @@
+- name: 'tech-c'
+  display_name: 'Domain Technical Contact (tech-c)'
+- name: 'abuse-c'
+  display_name: 'Domain Abuse Contact (abuse-c)'
+- name: 'billing-c'
+  display_name: 'Domain Billing Contact (billing-c)'
+- name: 'admin-c'
+  display_name: 'Domain Administrative Contact (admin-c)'
+- name: 'CISO'
+  display_name: 'CISO'
+- name: 'private'
+  display_name: 'Private'
+

@@ -10,9 +10,9 @@ from flask.testing import FlaskClient
 from app import create_app
 from app import db as _db
 from app.models import User, OrganizationGroup, ReportType, Role
-from app.models import Organization, ContactEmail
+from app.models import Organization, ContactEmail, MembershipRole, Country
 from app.utils import bosh_client
-
+from app.fixtures import testfixture
 
 class TestResponse(Response):
 
@@ -22,13 +22,23 @@ class TestResponse(Response):
 
 
 class TestClient(FlaskClient):
+
+    @property
+    def api_user(self):
+        return self._api_user
+
+    @api_user.setter
+    def api_user(self, value):
+        self._api_user = value
+
     def open(self, *args, **kwargs):
         if 'headers' not in kwargs:
             kwargs['headers'] = {}
         if 'json' in kwargs:
             kwargs['data'] = json.dumps(kwargs.pop('json'))
 
-        kwargs['headers'].update({'API-Authorization': self.test_user.api_key,
+        api_user = self.api_user or self.test_user
+        kwargs['headers'].update({'API-Authorization': api_user.api_key,
                                   'Accept': 'application/json'})
         if 'content_type' not in kwargs:
             kwargs['content_type'] = 'application/json'
@@ -50,12 +60,18 @@ def app(request):
 @pytest.fixture(scope='module', autouse=True)
 def db(request, app):
     """Create test database tables"""
+    _db.reflect()
     _db.drop_all()
     # Create the tables based on the current model
     _db.create_all()
-
-    user = User.create_test_user()
+    MembershipRole._MembershipRole__insert_defaults()
+    Country._Country__insert_defaults()
+    # user = User.create_test_user()
+    testfixture.testdata.addyaml()
+    user = User.query.filter_by(name="certmaster").first()
     TestClient.test_user = user
+    TestClient._api_user = user
+    TestClient.test_user.organization_id = Organization.query.filter_by(abbreviation='cert').first().id
     app.test_client_class = TestClient
     app.response_class = TestResponse
 
@@ -81,7 +97,6 @@ def addsampledata(client):
     OrganizationGroup._OrganizationGroup__insert_defaults()
     ReportType._ReportType__insert_defaults()
     Role._Role__insert_defaults()
-
     o = Organization(
         abbreviation="CERT-EU",
         full_name="Computer Emergency Response Team for EU "
@@ -94,7 +109,7 @@ def addsampledata(client):
     )
     _db.session.add(o)
     _db.session.commit()
-    client.test_user.organization_id = o.id
+    # ?? client.test_user.organization_id = o.id
 
 
 @pytest.fixture(scope='module')

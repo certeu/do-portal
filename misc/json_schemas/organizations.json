@@ -1,5 +1,5 @@
 {
-  "add_organization": {
+  "add_cp_organization": {
     "type": "object",
     "properties": {
       "abbreviation": {
@@ -34,11 +34,18 @@
           "type": "string",
           "format": "cidr"
         }
+      },
+      "parent_org_id": {
+        "type": "integer"
       }
     },
-    "required": ["abbreviation", "full_name"]
+    "required": [
+      "abbreviation",
+      "full_name",
+      "parent_org_id"
+    ]
   },
-  "update_organization": {
+  "update_cp_organization": {
     "type": "object",
     "properties": {
       "abbreviation": {

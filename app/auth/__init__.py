@@ -4,7 +4,7 @@
 """
 import json
 import datetime
-from flask import Blueprint, current_app, request
+from flask import Flask, Blueprint, current_app, request
 from flask_login import current_user
 from app.utils import _HTTP_METHOD_TO_AUDIT_MAP, addslashes
 from ..api.decorators import json_response, rate_limit, crossdomain
@@ -26,9 +26,15 @@ def before_auth_request():
 def ldap_error(e):
     return {'message': str(e)}, 500
 
+app = Flask(__name__)
+app.config.from_envvar('DO_LOCAL_CONFIG')
+if 'CP_SERVER' in app.config:
+    cp_server = app.config['CP_SERVER']
+else:
+    cp_server = 'http://127.0.0.1:5002'
 
 @auth.after_request
-@crossdomain(origin='http://127.0.0.1:5002',
+@crossdomain(origin=cp_server,
              headers='Content-Type, Accept, Authorization, Origin, '
                      'CP-TOTP-Required')
 def auth_audit_log(response):

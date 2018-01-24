@@ -1,0 +1,125 @@
+{
+  "add_cp_organization_membership": {
+    "type": "object",
+    "properties": {
+      "membership_role_id": {
+        "type": "integer"
+      },
+      "user_id": {
+        "type": "integer"
+      },
+      "organization_id": {
+        "type": "integer"
+      },
+      "country_id": {
+        "type": "integer"
+      },
+      "street": {
+        "type": "string"
+      },
+      "zip": {
+        "type": "string"
+      },
+      "phone": {
+        "type": "string"
+      },
+      "mobile": {
+        "type": "string"
+      },
+      "email": {
+        "type": "string"
+      },
+      "comment": {
+        "type": "string"
+      },
+      "pgp_key_id": {
+        "type": "string"
+      },
+      "pgp_key_fingerprint": {
+        "type": "string"
+      },
+      "pgp_key": {
+        "type": "string"
+      },
+      "smime": {
+        "type": "string"
+      },
+      "smime_filename": {
+        "type": "string"
+      },
+      "coc": {
+        "type": "string"
+      },
+      "coc_filename": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "membership_role_id",
+      "user_id",
+      "organization_id"
+    ]
+  },
+  "update_cp_organization_membership": {
+    "type": "object",
+    "properties": {
+      "membership_role_id": {
+        "type": "integer"
+      },
+      "user_id": {
+        "type": "integer"
+      },
+      "organization_id": {
+        "type": "integer"
+      },
+      "country_id": {
+        "type": "integer"
+      },
+      "street": {
+        "type": ["string", "null"]
+      },
+      "zip": {
+        "type": ["string", "null"]
+      },
+      "phone": {
+        "type": ["string", "null"]
+      },
+      "mobile": {
+        "type": ["string", "null"]
+      },
+      "email": {
+        "type": ["string", "null"]
+      },
+      "comment": {
+        "type": ["string", "null"]
+      },
+      "pgp_key_id": {
+        "type": ["string", "null"]
+      },
+      "pgp_key_fingerprint": {
+        "type": ["string", "null"]
+      },
+      "pgp_key": {
+        "type": ["string", "null"]
+      },
+      "smime": {
+        "type": ["string", "null"]
+      },
+      "smime_filename": {
+        "type": ["string", "null"]
+      },
+      "coc": {
+        "type": ["string", "null"]
+      },
+      "coc_filename": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": [
+      "membership_role_id",
+      "user_id",
+      "organization_id",
+      "phone"
+    ]
+  }
+}

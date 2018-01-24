@@ -1,0 +1,123 @@
+{
+  "add_cp_user": {
+    "type": "object",
+    "properties": {
+      "user": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "picture": {
+            "type": "string"
+          },
+          "picture_filename": {
+            "type": "string"
+          },
+          "birthdate": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "name"
+        ]
+      },
+      "organization_membership": {
+        "type": "object",
+        "properties": {
+          "membership_role_id": {
+            "type": "integer"
+          },
+          "organization_id": {
+            "type": "integer"
+          },
+          "country": {
+            "type": "string"
+          },
+          "street": {
+            "type": "string"
+          },
+          "zip": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "mobile": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "membership_role_id",
+          "organization_id"
+        ]
+      }
+    },
+    "required": [
+      "user",
+      "organization_membership"
+    ]
+  },
+  "update_cp_user": {
+    "type": "object",
+    "properties": {
+      "email": {
+        "type": ["string", "null"]
+      },
+      "password": {
+        "type": ["string", "null"]
+      },
+      "name": {
+        "type": ["string", "null"]
+      },
+      "picture": {
+        "type": ["string", "null"]
+      },
+      "picture_filename": {
+        "type": ["string", "null"]
+      },
+      "birthdate": {
+        "type": ["string", "null"]
+      },
+      "title": {
+        "type": ["string", "null"]
+      },
+      "origin": {
+        "type": ["string", "null"]
+      }
+    },
+    "required": [
+      "name"
+    ]
+  },
+  "lost_password": {
+    "type": "object",
+    "properties": {
+      "email": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "email"
+    ]
+  }
+}

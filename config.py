@@ -171,7 +171,7 @@ class Config:
     #: GnuPG home directoy
     GPG_HOME = ""
     #: Full PATH of the gpg binary
-    GPG_BINARY = "/usr/local/bin/gpg"
+    GPG_BINARY = "/usr/bin/gpg"
     #: GnuPG keyservers to use.
     #: First keyserver is considered local, second one public.
     GPG_KEYSERVERS = []
@@ -239,18 +239,19 @@ class DevelConfig(Config):
 
 
 class TestingConfig(Config):
+    # DEBUG = True
     TESTING = True
     SERVER_NAME = 'localhost'
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'do-testing'
     WTF_CSRF_ENABLED = False
-    SQLALCHEMY_DATABASE_URI = ''
+    SQLALCHEMY_DATABASE_URI = 'postgresql://dope_test:dope_test@localhost:5432/dope_test'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     BROKER_URL = ''
     CELERY_BACKEND = ''
     CELERY_ALWAYS_EAGER = True
     LDAP_AUTH_ENABLED = True
     BOSH_ENABLED = True
-
+    MAIL_DEFAULT_SENDER='testing@test.at'
 
 class ProductionConfig(Config):
     JSON_AS_ASCII = False

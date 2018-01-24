@@ -108,7 +108,6 @@ def create_app(config_name):
         :return:
         """
         g.user = current_user
-
     return app
 
 

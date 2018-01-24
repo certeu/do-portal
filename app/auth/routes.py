@@ -15,6 +15,7 @@ from . import auth
 from app.core import ApiResponse, ApiException
 from app.utils.mail import send_email
 from app.api.decorators import permission_required
+from app.api.decorators import json_response
 from app.utils import bosh_client
 from .forms import SetPasswordForm
 
@@ -460,6 +461,9 @@ def change_password():
     """
     if not current_user.check_password(request.json.get('current_password')):
         raise ApiException('Invalid current password')
+    # it makes no sense to check the current password
+    # if not current_user.check_password(request.json.get('current_password')):
+    #    return {'message': 'Invalid current password'}, 400
     new_pass = request.json.get('new_password', None)
     confirm_pass = request.json.get('confirm_password', None)
     if new_pass != confirm_pass:
@@ -471,6 +475,10 @@ def change_password():
         return ApiResponse({'message': 'Your password has been updated'})
     except AssertionError as ae:
         raise ApiException(ae)
+# uses new ApiException has to uses in the portal as well
+#        return {'message': str(ae)}
+#    except AttributeError as ae:
+#        return {'message': str(ae)}
 
 
 @auth.route('/reset-api-key')
@@ -480,6 +488,56 @@ def reset_api_key():
     db.session.add(current_user)
     db.session.commit()
     return ApiResponse({'message': 'Your API key has been reset'})
+
+@auth.route('/lost_password', methods=['POST'])
+@validate('users', 'lost_password')
+@json_response
+def lost_password():
+    """Request a new password
+
+    **Example request**:
+
+    .. sourcecode:: http
+
+        POST /iauth/lost_password HTTP/1.1
+        Accept: application/json
+        Content-Type: application/json
+
+        {
+          "email": "foo@bar.com"
+        }
+
+    **Example response**:
+
+    .. sourcecode:: http
+
+        HTTP/1.0 201 CREATED
+        Content-Type: application/json
+
+        {
+          "message": "Password sent"
+        }
+
+    :reqheader Accept: Content type(s) accepted by the client
+    :reqheader API-Authorization: API key. If present authentication and
+            authorization will be attempted.
+    :resheader Content-Type: This depends on `Accept` header or request
+
+    :<json string email: Email address for which to reset the password
+
+    :>json string message: Status message
+
+    :status 200: Password restore email was successfully sent
+    :status 400: Bad request
+    :status 403: Access denied. Authorization will not help and the request
+        SHOULD NOT be repeated.
+    :status 422: There was a problem with sending the email
+    """
+    try:
+        User.reset_password_send_email(request.json['email'])
+    except AttributeError:
+        return {'message': 'Attribute error. Invalid email?',}, 422, {}
+    return {'message': 'Password restore email sent'}, 200, {}
 
 
 @auth.route('/activate-account/<token>', methods=['GET', 'POST'])

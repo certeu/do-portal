@@ -3,12 +3,15 @@ import base64
 import datetime
 import binascii
 import hashlib
+import random
+import csv
+import yaml
 from urllib.error import HTTPError
 from mailmanclient import MailmanConnectionError, Client
 import onetimepass
 from app import db, login_manager, config
-from sqlalchemy import desc
-from sqlalchemy.dialects import mysql
+from sqlalchemy import desc, event
+from sqlalchemy.dialects import postgres
 from flask_sqlalchemy import BaseQuery
 from flask import current_app, request
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -18,11 +21,33 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired
 from itsdangerous import BadTimeSignature, TimedJSONWebSignatureSerializer
 from app.utils.mixins import SerializerMixin
 from app.utils.inflect import pluralize
-
+from validate_email import validate_email
+from app.utils.mail import send_email
+import phonenumbers
+import time
 
 #: we don't have an app context yet,
 #: we need to load the configuration from the config module
 _config = config.get(os.getenv('DO_CONFIG') or 'default')
+
+def check_password_quality(password):
+    import re
+    error_text = ''
+    ea = []
+    if len(password) < 8:
+        ea.append('password too short')
+    if not re.search(r"\d", password):
+        ea.append('password has to contain a number')
+    if not re.search(r"[ !#$%&'()*+,-./[\\\]^_`{|}~"+r'"]', password):
+        ea.append('password has to contain a special character')
+    if not re.search(r"[A-Z]", password):
+        ea.append('password has to contain an upper case letter')
+    if not re.search(r"[a-z]", password):
+        ea.append('password has to contain a lower case letter')
+
+    error_text = '; '.join(ea)
+    return error_text
+
 
 emails_organizations = db.Table(
     'emails_organizations', db.metadata,
@@ -109,7 +134,7 @@ class Model(db.Model):
 
     def from_json(self, json):
         for attr, value in json.items():
-            if isinstance(value, (str, int, list)):
+            if isinstance(value, (str, int, list)) or value is None:
                 if hasattr(self, attr):
                     setattr(self, attr, value)
         return self
@@ -215,18 +240,39 @@ class MailmanMember(MailmanModel):
 class User(UserMixin, Model, SerializerMixin):
     """User model"""
     __tablename__ = 'users'
-    __public__ = ('name', 'email', 'api_key', 'otp_enabled')
+    __public__ = ('id', 'name', 'api_key', 'otp_enabled', 'picture', 'birthdate', 'title', 'origin', 'email', 'picture_filename')
     id = db.Column(db.Integer, primary_key=True)
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'))
     name = db.Column(db.String(255), nullable=False)
-    _password = db.Column('password', db.String(255), nullable=False)
-    email = db.Column(db.String(255), unique=True)
+    _password = db.Column('password', db.String(255), nullable=False, default=binascii.hexlify(os.urandom(12)).decode())
+    _email = db.Column('email', db.String(255), unique=True)
     api_key = db.Column(db.String(64), nullable=True)
     is_admin = db.Column(db.Boolean(), default=False)
     deleted = db.Column(db.Integer, default=0)
+    ts_deleted = db.Column(db.DateTime)
     otp_secret = db.Column(db.String(16))
-    otp_enabled = db.Column(db.Boolean, default=0, nullable=False)
+    otp_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    picture = db.Column(db.Text)
+    picture_filename = db.Column(db.String(255))
+    birthdate = db.Column(db.Date)
+    title = db.Column(db.String(255))
+    origin = db.Column(db.String(255))
+
+    _orgs = []
+    _org_ids = []
+
+    user_memberships = db.relationship(
+        'OrganizationMembership',
+        # backref='user_memberships',
+        lazy='subquery',
+        back_populates="user",
+    )
+
+    user_memberships_dyn = db.relationship(
+        'OrganizationMembership',
+        lazy='dynamic',
+    )
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
@@ -254,6 +300,9 @@ class User(UserMixin, Model, SerializerMixin):
 
     @password.setter
     def password(self, password):
+        password_errors = check_password_quality(password)
+        if password_errors:
+            raise AttributeError(password_errors)
         self._password = generate_password_hash(
             password, method='pbkdf2:sha512:100001', salt_length=32
         )
@@ -261,14 +310,47 @@ class User(UserMixin, Model, SerializerMixin):
     def check_password(self, password):
         return check_password_hash(self._password, password)
 
+    @property
+    def email(self):
+        return self._email
+
+    @email.setter
+    def email(self, email):
+        if not validate_email(email):
+            raise AttributeError(email, 'seems not to be valid')
+        user = User.query.filter_by(_email=email).first()
+        if user:
+            raise AttributeError(email, 'duplicate email')
+        self._email = email
+
     @classmethod
     def authenticate(cls, email, password):
-        user = cls.query.filter(cls.email == email).first()
+        user = cls.query.filter(cls._email == email).first()
         if user:
             authenticated = user.check_password(password)
+            # user has to be 'OrgAdmin' for at least one organisation
+            orgs = user.get_organization_memberships()
+            if orgs == []:
+                authenticated = False
         else:
             authenticated = False
         return user, authenticated
+
+    @classmethod
+    def reset_password_send_email(cls, email):
+        user = cls.query.filter(cls._email == email).first()
+        if user:
+            orgs = user.get_organization_memberships()
+            if orgs == []:
+                return False
+            password = binascii.hexlify(os.urandom(random.randint(6, 8))).decode('ascii')+'aB1$'
+            user.password = password
+            send_email('energy-cert account', [user.email],
+                   'auth/email/ec_reset_password', user=user, new_password=password)
+            db.session.add(user)
+            db.session.commit()
+            return password
+        return False
 
     def get_auth_token(self, last_totp=None):
         """Think of :class:`URLSafeTimedSerializer` `salt` parameter as
@@ -356,9 +438,11 @@ class User(UserMixin, Model, SerializerMixin):
         rand = self.random_str()
         return hashlib.sha256(rand.encode()).hexdigest()
 
+
     @staticmethod
     def random_str(length=64):
         return binascii.hexlify(os.urandom(length)).decode()
+
 
     def can(self, permissions):
         return self.role is not None and \
@@ -367,6 +451,93 @@ class User(UserMixin, Model, SerializerMixin):
     def is_administrator(self):
         return self.can(Permission.ADMINISTER)
 
+    def may_handle_user(self, user):
+        """checks if the user object it is called on
+           (which MUST be an OrgAdmin)
+            may manipulate the user of the parameter list
+        """
+        oms = self.get_organization_memberships()
+        for um in user.user_memberships:
+           if um.organization_id in self._org_ids:
+              return True
+        return False
+
+    def mark_as_deleted(self):
+        self.deleted = 1
+        self.ts_deleted = datetime.datetime.utcnow()
+        self.email = str(time.time()) + self.email
+        db.session.add(self)
+        for um in self.user_memberships:
+            um.mark_as_deleted(delete_last_membership = True)
+
+    def may_handle_organization(self, org):
+        """checks if the user object it is called on
+           (which MUST be an OrgAdmin)
+            may manipulate the organization of the parameter list
+        """
+        self.get_organization_memberships()
+        if org.id in self._org_ids:
+            return True
+        return False
+
+
+    def _org_tree_iterator(self, org_id):
+        sub_orgs = Organization.query.filter_by(parent_org_id = org_id)
+        for sub_org in sub_orgs:
+           # print(sub_org.full_name + str(sub_org.id))
+           self._orgs.append(sub_org.organization_memberships)
+           self._org_ids.append(sub_org.id)
+           self._org_tree_iterator(sub_org.id)
+
+    def get_organization_memberships(self):
+        """ returns a list of OrganizationMembership records"""
+        """ self MUST be a logged in admin, we find all nodes (and subnodes)
+            where the user is admin an return ALL memeberships of those nodes
+            in the org tree """
+        # Or = self.user_memberships.membership_role.filter(MembershipRole.name == 'OrgAdmin' )
+        # there must be a better way to write this
+        admin_role = MembershipRole.query.filter_by(name = 'OrgAdmin').first()
+        # orgs_admin = OrganizationMembership.query.filter_by(user_id = self.id, membership_role_id = admin_role.id).first() #.filter(MembershipRole.name == 'OrgAdmin' )
+#        orgs_admin = OrganizationMembership.query.filter(OrganizationMembership.use = self, membership_role_id = admin_role.id).first()
+
+
+        orgs_admins = OrganizationMembership.query.filter_by(user_id = self.id, membership_role_id = admin_role.id).all()
+
+        if (not orgs_admins):
+           return []
+
+        self._orgs = [orgs_admins]
+        self._org_ids = [org.organization.id for org in orgs_admins]
+
+        # find all orgs where the org.id is the parent_org_id recursivly
+        #  for org in orgs_admin:
+        for oa in orgs_admins:
+            self._org_tree_iterator(oa.organization_id)
+        return OrganizationMembership.query.filter(OrganizationMembership.organization_id.in_(self._org_ids))
+
+    def get_organizations(self):
+        """returns a list of Organization records"""
+        self.get_organization_memberships()
+        if not self._org_ids:
+            return []
+        return Organization.query.filter(Organization.id.in_(self._org_ids))
+
+    def get_users(self):
+        """returns a list of unique User records"""
+        oms = self.get_organization_memberships()
+        # for om in oms:
+        users = []
+        ud = {}
+        for om in oms:
+            if om.user.id not in ud:
+                if om.user.deleted != 1:
+                    users.append(om.user)
+                ud[om.user.id] = 1
+        return users
+
+    def get_memberships(self):
+        """returns all memeberships for user"""
+        return self.user_memberships
 
 class Permission:
     """Permissions pseudo-model. Uses 8 bits to assign permissions.
@@ -496,9 +667,9 @@ class ContactEmail(Model, SerializerMixin):
         primary_key=True
     )
     #: Mark customer portal access for this email
-    cp = db.Column('cp_access', db.Boolean(), default=0, doc='CP access')
+    cp = db.Column('cp_access', db.Boolean(), default=False, doc='CP access')
     #: Functional mailbox marker
-    fmb = db.Column(db.Boolean(), default=0, doc='Functional mailbox')
+    fmb = db.Column(db.Boolean(), default=False, doc='Functional mailbox')
     organization = db.relationship(
         'Organization',
         backref=db.backref(
@@ -594,8 +765,8 @@ class Organization(Model, SerializerMixin):
     __tablename__ = 'organizations'
     __public__ = ('id', 'abbreviation', 'full_name', 'abuse_emails',
                   'ip_ranges', 'fqdns', 'asns', 'old_ID', 'is_sla',
-                  'mail_template', 'mail_times', 'group_id',
-                  'group', 'contact_emails')
+                  'mail_template', 'mail_times', 'group_id', 'group',
+                  'contact_emails', 'display_name', 'parent_org_id')
     query_class = FilteredQuery
     id = db.Column(db.Integer, primary_key=True)
     group_id = db.Column(
@@ -603,17 +774,28 @@ class Organization(Model, SerializerMixin):
         db.Integer,
         db.ForeignKey('organization_groups.id', name='fk_org_group_id')
     )
-    is_sla = db.Column(mysql.TINYINT(1), default=0)
+    is_sla = db.Column(db.Boolean, default=True)
     abbreviation = db.Column(db.String(255), index=True)
     # this is the ID field from AH wiki
     # ("{0:02d}".format(9)
     # we are keeping it for compatibility with the Excel sheets
     old_ID = db.Column(db.String(5))
     full_name = db.Column(db.String(255))
+    display_name = db.Column(db.String(255))
     mail_template = db.Column(db.String(50), default='EnglishReport')
     # send emails this many seconds apart
     mail_times = db.Column(db.Integer, default=3600)
+    ts_deleted = db.Column(db.DateTime)
     deleted = db.Column(db.Integer, default=0)
+
+    parent_org_id = db.Column(db.Integer, db.ForeignKey('organizations.id'))
+    child_organizations = db.relationship('Organization')
+    parent_org = db.relationship('Organization', remote_side=[id])
+
+    organization_memberships = db.relationship(
+        'OrganizationMembership',
+        backref='orgs_for_user'
+    )
 
     group = db.relationship(
         'OrganizationGroup',
@@ -720,6 +902,20 @@ class Organization(Model, SerializerMixin):
         org.group_id = 1
         return org
 
+    def mark_as_deleted(self):
+        self.deleted = 1
+        self.ts_deleted = datetime.datetime.utcnow()
+
+    # STUB
+    def has_child_organizations(self):
+        return True
+
+    # STUB
+    def can_be_deleted(self):
+        # not has_child_organizations and not has associated OrganizationMembership
+        # records
+        return True
+
     def __repr__(self):
         return '{} #{}'.format(self.__class__.__name__, self.abbreviation)
 
@@ -748,10 +944,10 @@ class Vulnerability(Model, SerializerMixin):
     reporter_email = db.Column(db.String(255))
     #: PoC
     url = db.Column(db.Text)
-    request_method = db.Column(db.Enum('GET', 'POST', 'PUT'), default='GET')
+    request_method = db.Column(db.Enum('GET', 'POST', 'PUT', name='httpverb'), default='GET')
     request_data = db.Column(db.Text)
     check_string = db.Column(db.Text)
-    test_type = db.Column(db.Enum('request'), default='request')
+    test_type = db.Column(db.Enum('request', name='test_type_enum'), default='request')
     request_response_code = db.Column(db.Integer, nullable=True)
     tested = db.Column(db.DateTime, nullable=True)
     reported = db.Column(db.DateTime, default=datetime.datetime.utcnow)
@@ -802,7 +998,7 @@ class DeliverableFile(Model, SerializerMixin):
     deliverable_id = db.Column(db.Integer, db.ForeignKey('deliverables.id'))
     name = db.Column(db.String(255), nullable=False)
     #: File will be available to SLA constituents only
-    is_sla = db.Column(mysql.TINYINT(1), default=0)
+    is_sla = db.Column(db.Boolean, default=0)
     deleted = db.Column(db.Integer, default=0)
 
     deliverable_ = db.relationship(
@@ -825,7 +1021,7 @@ class Task(Model):
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.String(255), nullable=True, unique=True)
     status = db.Column(db.String(50), nullable=True)
-    result = db.Column(db.BLOB, nullable=True)
+    result = db.Column(db.LargeBinary, nullable=True)
     date_done = db.Column(db.DateTime, nullable=True)
     traceback = db.Column(db.Text, nullable=True)
 
@@ -834,7 +1030,7 @@ class TaskGroup(Model):
     __tablename__ = 'tasks_groupmeta'
     id = db.Column(db.Integer, primary_key=True)
     taskset_id = db.Column(db.String(255), nullable=True, unique=True)
-    result = db.Column(db.BLOB, nullable=True)
+    result = db.Column(db.LargeBinary, nullable=True)
     date_done = db.Column(db.DateTime, nullable=True)
 
 
@@ -1017,6 +1213,207 @@ class Contact(Model):
     email = db.Column(db.String(255), nullable=False)
     deleted = db.Column(db.Integer, default=0)
 
+class Country(Model, SerializerMixin):
+    __tablename__ = 'countries'
+    __public__ = ('id', 'cc', 'name')
+    query_class = FilteredQuery
+    cc = db.Column(db.String(255), nullable=False, unique=True)
+    name = db.Column(db.String(255), nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    deleted = db.Column(db.Integer, default=0)
+    users_for_country = db.relationship(
+        'OrganizationMembership',
+        back_populates='country'
+    )
+
+    @staticmethod
+    def __insert_defaults():
+##        countries = [
+##          ['AT',               'Austria'],
+##          ['DE',               'Germany'],
+##          ['CH',               'Switzerland'],
+##        ]
+##        for r in countries:
+##            country = Country.query.filter_by(name=r[0]).first()
+##
+##            if country is None:
+##                country = Country(cc=r[0], name=r[1] )
+##                db.session.add(country)
+##        db.session.commit()
+        with open('install/iso_3166_2_countries.csv') as csvfile:
+            data = csv.reader(csvfile, delimiter = ',')
+            data = list(data)
+            for r in data[2:]:
+            #    print(r[1], r[10])
+                country = Country.query.filter_by(cc=r[10]).first()
+                if country is None:
+                    country = Country(cc=r[10], name=r[1] )
+                    db.session.add(country)
+            db.session.commit()
+
+class MembershipRole(Model, SerializerMixin):
+    __tablename__ = 'membership_roles'
+    __public__ = ('id', 'name', 'display_name')
+    query_class = FilteredQuery
+    name = db.Column(db.String(255), nullable=False)
+    display_name = db.Column(db.String(255), nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    deleted = db.Column(db.Integer, default=0)
+    users_for_role = db.relationship(
+        'OrganizationMembership',
+        back_populates='membership_role'
+    )
+
+    __mapper_args__ = {
+        'order_by': name
+    }
+
+    @staticmethod
+    def __insert_defaults():
+        # this role has to exist
+        roles = [['OrgAdmin', 'Administrator Organisation']]
+        default_roles = [
+           ['tech-c', 'Domain Technical Contact (tech-c)'],
+           ['abuse-c', 'Domain Abuse Contact (abuse-c)'],
+           ['billing-c', 'Domain Billing Contact (billing-c)'],
+           ['admin-c', 'Domain Administrative Contact (admin-c)'],
+           ['CISO', 'CISO'],
+           ['private', 'Private'],
+        ]
+
+        try:
+            stream = open('install/roles.yaml')
+            data_loaded = yaml.load(stream)
+            for role in data_loaded:
+                roles.append([role['name'], role['display_name']])
+        except IOError:
+            for role in default_roles:
+                roles.append(role)
+
+        for r in roles:
+            role = MembershipRole.query.filter_by(name=r[0]).first()
+
+            if role is None:
+                role = MembershipRole(name=r[0], display_name=r[1] )
+                db.session.add(role)
+        db.session.commit()
+
+        def __repr__(self):
+            return '{} #{}'.format(self.__class__.__name__, self.name)
+
+
+
+class OrganizationMembership(Model, SerializerMixin):
+    __tablename__ = 'organization_memberships'
+    __public__ = ('id', 'user_id', 'organization_id', 'street', 'zip', 'city',
+                  'country', 'comment', 'email', 'phone', 'mobile', 'membership_role_id',
+                  'pgp_key_id', 'pgp_key_fingerprint', 'pgp_key', 'smime', 'country_id',
+                  'coc', 'coc_filename', 'smime_filename', 'sms_alerting')
+
+    query_class = FilteredQuery
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    user = db.relationship("User", back_populates="user_memberships", lazy='subquery')
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'))
+    # organization = db.relationship("Organization", back_populates="organization_membership")
+    organization = db.relationship("Organization")
+    membership_role_id = db.Column(db.Integer, db.ForeignKey('membership_roles.id'))
+    membership_role = db.relationship("MembershipRole")
+    street = db.Column(db.String(255))
+    zip = db.Column(db.String(25))
+    city = db.Column(db.String(255))
+    # country = db.Column(db.String(50))  # should be a lookup table
+    country_id = db.Column(db.Integer, db.ForeignKey('countries.id'))
+    country = db.relationship("Country")
+    comment = db.Column(db.String(255))
+    _email = db.Column('email', db.String(255))
+    _phone = db.Column('phone', db.String(255))
+    _mobile = db.Column('mobile', db.String(255))
+    deleted = db.Column(db.Integer, default=0)
+    ts_deleted = db.Column(db.DateTime)
+    pgp_key_id = db.Column(db.String(255))
+    pgp_key_fingerprint = db.Column(db.String(255))
+    pgp_key = db.Column(db.Text)
+    smime = db.Column(db.Text)
+    smime_filename = db.Column(db.String(255))
+    coc = db.Column(db.Text)
+    coc_filename = db.Column(db.String(255))
+    _sms_alerting = db.Column('sms_alerting', db.Integer, default=0)
+
+    def mark_as_deleted(self, delete_last_membership = False):
+        mc = self.user.user_memberships_dyn.filter_by(deleted = 0).count()
+        if mc == 1 and delete_last_membership == False:
+            raise AttributeError('Last membership may not be deleted')
+        self.deleted = 1
+        self.ts_deleted = datetime.datetime.utcnow()
+
+    @property
+    def sms_alerting(self):
+        return self._sms_alerting
+
+    @sms_alerting.setter
+    def sms_alerting(self, sms_alerting):
+        #if sms_alerting == 1 and not self._mobile:
+        #    db.session.rollback()
+        #    raise AttributeError('if sms_alerting is set mobile number also has to be set')
+        self._sms_alerting = sms_alerting
+
+    @property
+    def email(self):
+        return self._email
+
+    @email.setter
+    def email(self, email):
+        if not validate_email(email):
+            db.session.rollback()
+            raise AttributeError(email, 'seems not to be valid')
+        self._email = email
+
+    @property
+    def phone(self):
+        return self._phone
+
+    @phone.setter
+    def phone(self, phone):
+        try:
+            if not phone:
+                phone = None
+            else:
+                x = phonenumbers.parse(phone, None)
+        except phonenumbers.phonenumberutil.NumberParseException as err:
+            db.session.rollback()
+            raise AttributeError(phone, 'seems not to be valid:', err)
+        self._phone = phone
+
+    @property
+    def mobile(self):
+        return self._mobile
+
+    @mobile.setter
+    def mobile(self, mobile):
+        try:
+            if not mobile:
+                mobile = None
+            else:
+                x = phonenumbers.parse(mobile, None)
+        except phonenumbers.phonenumberutil.NumberParseException as err:
+            db.session.rollback()
+            raise AttributeError(mobile, 'seems not to be valid:', err)
+        self._mobile = mobile
+
+
+""" watch for insert on Org Memberships """
+def org_mem_listerner(mapper, connection, org_mem):
+    if org_mem.membership_role and org_mem.membership_role.name == 'OrgAdmin':
+        # print(org_mem.membership_role.name,  org_mem.email, org_mem.user.email, org_mem.user._password)
+        # print(org_mem.membership_role.name,  org_mem.email)
+        password = binascii.hexlify(os.urandom(random.randint(6, 8))).decode('ascii') + 'Ba1%'
+        org_mem.user.password = password
+        send_email('energy-cert account', [org_mem.user.email],
+               'auth/email/ec_activate_account', org_mem=org_mem, new_password=password)
+
+
+event.listen(OrganizationMembership, 'after_insert', org_mem_listerner, retval=True, propagate=True)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -1054,15 +1451,18 @@ def load_token(token):
     # server side and not rely on the users cookie to exipre.
 
     max_age = current_app.config['REMEMBER_COOKIE_DURATION'].total_seconds()
-
+    print("*****",  max_age)
     # Decrypt the Security Token, data = [username, hashpass, id]
     s = URLSafeTimedSerializer(
         current_app.config['SECRET_KEY'],
         salt='user-auth',
         signer_kwargs=dict(key_derivation='hmac',
                            digest_method=hashlib.sha256))
+    from pprint import pprint
     try:
-        data = s.loads(token, max_age=max_age)
+        (data, timestamp) = s.loads(token, max_age=max_age, return_timestamp=True)
+        pprint(data)
+        pprint(timestamp)
     except (BadTimeSignature, SignatureExpired):
         return None
 

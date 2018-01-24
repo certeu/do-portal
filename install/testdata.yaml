@@ -1,0 +1,69 @@
+org:
+  - abbreviation: cert
+    full_name: "Energy CERT Austria"
+    display_name: "Energy CERT"
+  - abbreviation: eorg
+    parent_org: cert
+  - abbreviation: eorg-electricity
+    parent_org: eorg
+  - abbreviation: eorg-gas
+    parent_org: eorg
+  - abbreviation: energyorg
+    parent_org: cert
+  - abbreviation: energyorg-electricity
+    parent_org: energyorg
+  - abbreviation: energyorg-gas
+    parent_org: energyorg
+  - abbreviation: energyorg-electricity-transmission
+    parent_org: energyorg-electricity
+user:
+  - name: certmaster
+    org: cert
+    role: OrgAdmin
+    street: "Karlsplatz 1"
+    city: "Wien"
+    zip: "1010"
+    country: AT
+    comment: "Master User"
+    email: "cert@master.at"
+    phone: "+431123456"
+    password: "Bla12345%"
+    mobile: "+3412312312"
+    sms_alerting: 1
+  - name: eorgmaster
+    org: eorg
+    role: OrgAdmin
+    email: "admin@eorg.at"
+  - name: "E-Org User"
+    org: eorg-gas
+    role: CISO
+    email: "gasuser@eorg.at"
+  - name: "E-Org User"
+    org: eorg-electricity
+    role: CISO
+    email: "cisouser@eorg.at"
+  - name: "E-Org Gas Admin"
+    org: eorg-gas
+    role: OrgAdmin
+    email: "gasadmin@eorg.at"
+  - name: "E-Org Gas Admin 2"
+    org: eorg-gas
+    role: OrgAdmin
+    email: "gasadmin2@eorg.at"
+  - name: "E-Org Gas Admin"
+    org: eorg-electricity
+    role: OrgAdmin
+    email: "gasundelectricity.admin@eorg.at"
+  - name: "EnergyOrg Admin"
+    org: energyorg
+    role: OrgAdmin
+    email: "admin@energyorg.at"
+    password:  "blaBla12$"
+  - name: "EnergyOrg CISO"
+    org: energyorg
+    role: CISO
+    email: "cisouser@energyorg.at"
+  - name: "EnergyOrg Strom Leitung Admin"
+    org: energyorg-electricity-transmission
+    role: OrgAdmin
+    email: "admin-electricity-transmission@energyorg.at"

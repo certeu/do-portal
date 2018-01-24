@@ -378,7 +378,7 @@ def add_organization():
     o = Organization.fromdict(request.json)
     try:
         for e in contact_emails:
-            cp = e.get('cp', 0)
+            cp = e.get('cp', False)
             o.contact_emails.append(
                 ContactEmail(
                     email_=Email(email=e['email']),
@@ -534,7 +534,7 @@ def update_organization(org_id):
         o.abuse_emails.append(ac)
 
     for e in contact_emails:
-        cp = e.get('cp', 0)
+        cp = e.get('cp', False)
         o.contact_emails.append(
             ContactEmail(
                 email_=Email(email=e['email']),

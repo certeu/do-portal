@@ -39987,51 +39987,51 @@ _jQuery.fn.bindings = function(windowJquery, bindExp) {
       return keys.indexOf(key) !== -1;
     }
 
-    var evnt;
+    var eorgt;
     if (/transitionend/.test(eventType)) {
       if (window.WebKitTransitionEvent) {
-        evnt = new WebKitTransitionEvent(eventType, eventData);
-        evnt.initEvent(eventType, false, true);
+        eorgt = new WebKitTransitionEvent(eventType, eventData);
+        eorgt.initEvent(eventType, false, true);
       } else {
         try {
-          evnt = new TransitionEvent(eventType, eventData);
+          eorgt = new TransitionEvent(eventType, eventData);
         }
         catch (e) {
-          evnt = document.createEvent('TransitionEvent');
-          evnt.initTransitionEvent(eventType, null, null, null, eventData.elapsedTime || 0);
+          eorgt = document.createEvent('TransitionEvent');
+          eorgt.initTransitionEvent(eventType, null, null, null, eventData.elapsedTime || 0);
         }
       }
     } else if (/animationend/.test(eventType)) {
       if (window.WebKitAnimationEvent) {
-        evnt = new WebKitAnimationEvent(eventType, eventData);
-        evnt.initEvent(eventType, false, true);
+        eorgt = new WebKitAnimationEvent(eventType, eventData);
+        eorgt.initEvent(eventType, false, true);
       } else {
         try {
-          evnt = new AnimationEvent(eventType, eventData);
+          eorgt = new AnimationEvent(eventType, eventData);
         }
         catch (e) {
-          evnt = document.createEvent('AnimationEvent');
-          evnt.initAnimationEvent(eventType, null, null, null, eventData.elapsedTime || 0);
+          eorgt = document.createEvent('AnimationEvent');
+          eorgt.initAnimationEvent(eventType, null, null, null, eventData.elapsedTime || 0);
         }
       }
     } else if (/touch/.test(eventType) && supportsTouchEvents()) {
-      evnt = createTouchEvent(element, eventType, x, y);
+      eorgt = createTouchEvent(element, eventType, x, y);
     } else {
-      evnt = document.createEvent('MouseEvents');
+      eorgt = document.createEvent('MouseEvents');
       x = x || 0;
       y = y || 0;
-      evnt.initMouseEvent(eventType, true, true, window, 0, x, y, x, y, pressed('ctrl'),
+      eorgt.initMouseEvent(eventType, true, true, window, 0, x, y, x, y, pressed('ctrl'),
           pressed('alt'), pressed('shift'), pressed('meta'), 0, relatedTarget);
     }
 
     /* we're unable to change the timeStamp value directly so this
      * is only here to allow for testing where the timeStamp value is
      * read */
-    evnt.$manualTimeStamp = eventData.timeStamp;
+    eorgt.$manualTimeStamp = eventData.timeStamp;
 
-    if (!evnt) return;
+    if (!eorgt) return;
 
-    var originalPreventDefault = evnt.preventDefault,
+    var originalPreventDefault = eorgt.preventDefault,
         appWindow = element.ownerDocument.defaultView,
         fakeProcessDefault = true,
         finalProcessDefault,
@@ -40039,12 +40039,12 @@ _jQuery.fn.bindings = function(windowJquery, bindExp) {
 
     // igor: temporary fix for https://bugzilla.mozilla.org/show_bug.cgi?id=684208
     angular['ff-684208-preventDefault'] = false;
-    evnt.preventDefault = function() {
+    eorgt.preventDefault = function() {
       fakeProcessDefault = false;
-      return originalPreventDefault.apply(evnt, arguments);
+      return originalPreventDefault.apply(eorgt, arguments);
     };
 
-    element.dispatchEvent(evnt);
+    element.dispatchEvent(eorgt);
     finalProcessDefault = !(angular['ff-684208-preventDefault'] || !fakeProcessDefault);
 
     delete angular['ff-684208-preventDefault'];
@@ -40071,16 +40071,16 @@ _jQuery.fn.bindings = function(windowJquery, bindExp) {
   }
 
   function createTouchEvent(element, eventType, x, y) {
-    var evnt = new Event(eventType);
+    var eorgt = new Event(eventType);
     x = x || 0;
     y = y || 0;
 
     var touch = document.createTouch(window, element, Date.now(), x, y, x, y);
     var touches = document.createTouchList(touch);
 
-    evnt.touches = touches;
+    eorgt.touches = touches;
 
-    return evnt;
+    return eorgt;
   }
 }());
 

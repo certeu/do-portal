@@ -9,3 +9,9 @@ docs/_build
 docs-cp/_build
 logs/
 tmp/
+*.sw?
+__pycache__
+.cache/
+src/
+data/
+install/*_roles.yaml

@@ -21,7 +21,11 @@ def test_update_tag(client):
 
 def test_read_tag(client):
     rv = client.get(url_for('api.get_tags'))
+<<<<<<< HEAD
     assert_msg(rv, key='tags')
+=======
+    assert_msg(rv, key='items')
+>>>>>>> topic-postgres
 
     rv = client.get(url_for('api.get_tag', tag_id=1))
     assert_msg(rv, key='name')

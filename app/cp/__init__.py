@@ -6,9 +6,9 @@
 """
 import json
 import datetime
-from flask import Blueprint
+from flask import Flask, Blueprint
 from flask import current_app, request, g
-from flask_login import login_required
+from flask_login import login_required, decode_cookie
 from app.utils import addslashes, _HTTP_METHOD_TO_AUDIT_MAP
 from app.api.decorators import rate_limit, crossdomain
 
@@ -19,9 +19,17 @@ __release__ = '.'.join(map(str, version_))
 cp = Blueprint('cp', __name__)
 from . import routes  # noqa
 from . import organizations, vulnerabilities, deliverable_files, fqdns  # noqa
+from . import membership_roles, countries, organization_memberships, users  # noqa
 from .analysis import av, static, vxstream, fireeye  # noqa
 from . import errors  # noqa
 
+
+app = Flask(__name__)
+app.config.from_envvar('DO_LOCAL_CONFIG')
+if 'CP_SERVER' in app.config:
+    cp_server = app.config['CP_SERVER']
+else:
+    cp_server = 'http://127.0.0.1:5002'
 
 @cp.before_request
 @rate_limit(30, 1)
@@ -32,7 +40,7 @@ def before_api_request():
 
 
 @cp.after_request
-@crossdomain(origin='http://127.0.0.1:5002')
+@crossdomain(origin=cp_server)
 def cp_audit_log(response):
     """Saves information about the request in the ``audit_log``
 

@@ -1,0 +1,25 @@
+do_portal=# select o.id, 
+                   o.full_name, 
+                   e.email, 
+                   cp_access
+              from organizations o join contactemails_organizations co 
+                on o.id = co.organization_id
+              join emails e 
+                on co.email_id = e.id;
+
+
+select o.id,
+                   o.full_name,
+                   e.email,
+                   cp_access,
+                   u.name,
+                   u.password,
+                   u.email,
+                   otp_enabled,
+                   otp_password
+              from organizations o join contactemails_organizations co
+                on o.id = co.organization_id
+              join emails e
+                on co.email_id = e.id
+              join users u
+                on u.organization_id = o.id 

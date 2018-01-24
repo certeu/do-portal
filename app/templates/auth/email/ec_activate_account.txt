@@ -1,0 +1,12 @@
+Dear {{ org_mem.user.name }},
+
+just one more step to activate your account. Click on following button to activate it: │{{webroot}}{{ url_for('auth.set_password', token=token) }}
+
+To contact us, please visit https://www.energy-cert.at
+
+--
+// Austrian Energy CERT - https://www.energy-cert.at/
+// T: +43 1 5056416 92
+// Eine Initiative of the Austrian
+// electricity and gas industry and
+// nic.at GmbH, commercial register number 172568b, LG Salzburg

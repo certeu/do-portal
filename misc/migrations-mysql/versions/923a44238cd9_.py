@@ -92,7 +92,7 @@ def upgrade():
         sa.Column('created', sa.DateTime(), nullable=True),
         sa.Column('updated', sa.DateTime(), nullable=True),
         sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('taskset_id', sa.String(length=255), nullable=True),
+        sa.Column('taskset_id', sa.String(length=60), nullable=True),
         sa.Column('result', sa.BLOB(), nullable=True),
         sa.Column('date_done', sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint('id'),
