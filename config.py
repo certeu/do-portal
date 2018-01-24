@@ -230,6 +230,8 @@ class DevelConfig(Config):
     DEBUG = True
     TRAP_BAD_REQUEST_ERRORS = True
     ASSETS_DEBUG = True
+    SQLALCHEMY_ECHO = False
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'devkey'
     WTF_CSRF_ENABLED = False
     WTF_CSRF_SECRET_KEY = os.environ.get('WTF_CSRF_SECRET_KEY') or 'devkey'
     SQLALCHEMY_DATABASE_URI = ''
