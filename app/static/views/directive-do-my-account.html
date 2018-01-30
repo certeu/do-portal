@@ -19,6 +19,17 @@
                 <p>Using the API key: </p>
         <pre>$ curl -H "Content-Type: application/json" -H "Accept: application/json" \<br>-H "API-Authorization: {{ account.api_key }}" \<br>"https://do.cert.europa.eu/api/1.0/organizations"
         </pre>
+        <p>PowerShell example: </p>
+        <pre>
+>>> $AllProtocols = [System.Net.SecurityProtocolType]'Tls11,Tls12'
+>>> [System.Net.ServicePointManager]::SecurityProtocol = $AllProtocols
+>>> $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+>>> $headers.Add("API-Authorization","{{account.api_key}}")
+>>> $headers.Add("Accept", "application/json")
+>>> $uri = "https://cp.cert.europa.eu/api/1.0/organizations"
+>>> $r = Invoke-RestMethod -Method Get -Headers $headers -Uri $uri
+>>> $r
+        </pre>
 
                 <p>Alternatively, you can login using your credentials and pass the cookie to subsequent requests:</p>
                 <pre>$ curl -v -H "Accept: application/json" -H "Content-Type: application/json" -X POST "https://do.cert.europa.eu/auth/login" \<br>-d '{"email": "user@domain.tld", "password": "qkQhJwh6DvCuc0A"}'</pre>
