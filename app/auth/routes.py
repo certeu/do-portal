@@ -3,7 +3,6 @@ import random
 import binascii
 import pyqrcode
 from io import BytesIO
-from urllib.parse import urlparse
 from flask import request, current_app, render_template
 from flask import flash, redirect, url_for, session
 from flask_login import login_user, logout_user, current_user, login_required
@@ -81,9 +80,8 @@ def login():
     password = request.json.get('password')
 
     if email and password:
-        cp_host = request.headers.get('Host', None)
-        o = urlparse(current_app.config['CP_WEB_ROOT'])
-        if cp_host == o.netloc:
+        cp_host = request.environ.get('HTTP_HOST', None)
+        if cp_host.startswith('cp.'):
             user, authenticated = User.authenticate(email, password)
             if user and authenticated:
                 if user.otp_enabled:
@@ -294,11 +292,10 @@ def register():
         raise e
     expiry = 72 * 3600
     activation_token = user.generate_reset_token(expiry)
-    send_email('You account details', [user.email],
+    send_email('Your account details', [user.email],
                'auth/email/activate_account', user=user,
                webroot=current_app.config['CP_WEB_ROOT'],
                token=activation_token, expiry=expiry / 60)
-    current_app.log.debug(activation_token)
     msg = 'User registered. An activation email was sent to {}'
     return ApiResponse({'message': msg.format(user.email)}, 201)
 
@@ -358,7 +355,7 @@ def unregister():
     db.session.add(eml)
 
     user = User.query.filter_by(email=request.json['email']).first()
-    send_email('You account details', [user.email],
+    send_email('Your account details', [user.email],
                'auth/email/deactivate_account', user=user)
     notify = user.email
     User.query.filter_by(email=request.json['email']).delete()

@@ -5,6 +5,7 @@
 
 """
 import json
+from flask import current_app
 from app.core import ApiResponse, ApiPagedResponse
 from app.models import Report, Sample
 from . import api
@@ -188,12 +189,12 @@ def get_sample_report(sha256):
     :status 404: Resource not found
     """
     sample = Sample.query.filter_by(sha256=sha256).first_or_404()
-    reports = []
-    static = Report.query.filter_by(sample_id=sample.id, type_id=1).first()
-    av = Report.query.filter_by(sample_id=sample.id, type_id=2).first()
-    for report in static, av:
-        serialized = report.serialize()
-        if 'report' in serialized:
+    reports = Report.query.filter_by(sample_id=sample.id).all()
+    for report in reports:
+        try:
+            serialized = report.serialize()
             serialized['report_parsed'] = json.loads(serialized['report'])
-        reports.append(serialized)
+            reports.append(serialized)
+        except (AttributeError, KeyError) as ae:
+            current_app.log.warn(ae)
     return ApiResponse({'reports': reports})

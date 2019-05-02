@@ -258,8 +258,8 @@ angular.module('Portal.controllers', ['Portal.services', 'Portal.configuration']
     $scope.loadPage();
 
   }])
-  .controller('SamplesController', ['$scope', '$uibModal', 'GridData', 'notifications', function($scope, $uibModal, GridData, notifications){
-
+  .controller('SamplesController', ['$scope', '$uibModal', 'GridData', 'notifications', 'apiConfig', function($scope, $uibModal, GridData, notifications, apiConfig){
+    $scope.webServiceUrl = apiConfig.urlPrefix;
 
     $scope.pageChanged = function(){
       //$log.log('Page changed to: ' + $scope.currentPage);
