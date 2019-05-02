@@ -196,5 +196,5 @@ def get_sample_report(sha256):
             serialized['report_parsed'] = json.loads(serialized['report'])
             reports.append(serialized)
         except (AttributeError, KeyError) as ae:
-            current_app.log.warn(ae)
+            current_app.log.error(ae)
     return ApiResponse({'reports': reports})

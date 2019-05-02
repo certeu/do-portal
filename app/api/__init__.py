@@ -19,7 +19,7 @@ from app.utils import addslashes, _HTTP_METHOD_TO_AUDIT_MAP
 
 
 @api.before_request
-@rate_limit(50, 1)
+@rate_limit(100, 1)
 @login_required
 @admin_required
 def before_api_request():

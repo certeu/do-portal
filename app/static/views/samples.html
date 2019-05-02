@@ -21,14 +21,14 @@
                 </td>
                 <td>{{ f.created }}</td>
                 <td class="text-right">
-                    <a class="btn btn-default" title="Download {{ f.name }}"
-                      href="{{webServiceUrl}}/samples/{{f.sha256}}/contents">
-                      <span class="glyphicon glyphicon-download" aria-hidden="true"></span>
-                    </a>
-                    <button ui-sref="viewReport(f)" title="View scan report"
+                    <a ui-sref="viewReport(f)" title="View scan report"
                             type="submit" class="btn btn-default btn-small">
                         <span class="glyphicon glyphicon-list-alt" aria-hidden="true"></span>
-                    </button>
+                    </a>
+                    <a class="btn btn-default" title="Download {{ f.name }}"
+                        href="{{webServiceUrl}}/samples/{{f.sha256}}/contents">
+                      <span class="glyphicon glyphicon-download" aria-hidden="true"></span>
+                    </a>
                 </td>
             </tr>
         </tbody>
