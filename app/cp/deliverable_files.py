@@ -71,7 +71,7 @@ def get_files():
         deliverable_query = DeliverableFile.query
     else:
         deliverable_query = DeliverableFile.query.filter_by(is_sla=0)
-    return ApiPagedResponse(deliverable_query, max_per_page=50)
+    return ApiPagedResponse(deliverable_query)
 
 
 @cp.route('/files/<int:file_id>', methods=['GET'])
