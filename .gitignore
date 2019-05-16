@@ -10,3 +10,4 @@ docs/_build
 docs-cp/_build
 logs/
 tmp/
+venv/
