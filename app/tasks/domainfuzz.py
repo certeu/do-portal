@@ -52,5 +52,9 @@ def augment(domain, url, parent_fqdn_id, checks):
                       dns_a=domain.dns_a, dns_ns=domain.dns_ns,
                       dns_mx=domain.dns_mx,
                       raw=json.dumps(domain.__dict__))
-        db.session.add(d)
-        db.session.commit()
+        try:
+            db.session.add(d)
+            db.session.commit()
+        except Exception as error:
+            db.session.rollback()
+            raise error
