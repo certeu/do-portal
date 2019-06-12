@@ -81,7 +81,7 @@ def login():
 
     if email and password:
         cp_host = request.environ.get('HTTP_HOST', None)
-        if cp_host.startswith('cp.'):
+        if cp_host.startswith('cp.') or cp_host.startswith('sp.'):
             user, authenticated = User.authenticate(email, password)
             if user and authenticated:
                 if user.otp_enabled:
