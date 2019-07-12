@@ -1,6 +1,4 @@
-import os
 import random
-import binascii
 import pyqrcode
 from io import BytesIO
 from flask import request, current_app, render_template
@@ -15,7 +13,7 @@ from . import auth
 from app.core import ApiResponse, ApiException
 from app.utils.mail import send_email
 from app.api.decorators import permission_required
-from app.utils import bosh_client
+from app.utils import bosh_client, random_ascii
 from .forms import SetPasswordForm
 
 
@@ -554,18 +552,23 @@ def do_bosh_auth():
     """
     if not current_app.config['BOSH_ENABLED']:
         return {}, 503
+
+    random_nickname = random_ascii()
+
     c = bosh_client.BOSHClient(
-        current_app.config['JID'] + '/' + current_user.email.split('@')[0] +
+        current_app.config['JID'] + '/' + random_nickname +
         '-' + str(random.choice(range(666))),
         current_app.config['JPASS'],
         current_app.config['BOSH_SERVICE']
     )
+
     if not current_user.can(Permission.ADMINISTER):
         service_url = current_app.config['CP_BOSH_SERVICE']
         rooms = current_app.config['CP_ROOMS']
     else:
         service_url = current_app.config['BOSH_SERVICE']
         rooms = current_app.config['ROOMS']
+
     return ApiResponse({
         'service': service_url,
         'rooms': rooms,
@@ -637,7 +640,7 @@ def _save_ldap_user(ldap_user):
 
 def _random_ascii():
     length = random.randint(12, 16)
-    return binascii.hexlify(os.urandom(length)).decode('ascii')
+    return random_ascii(length=length)
 
 
 @auth.route('/toggle-2fa', methods=['POST'])
