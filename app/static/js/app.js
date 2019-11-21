@@ -193,7 +193,7 @@ angular.module('Portal', ['Portal.services', 'Portal.controllers', 'Portal.filte
           }
         })
         .state('viewReport', {
-          url: '/report/:sha256',
+          url: '/report/:sha256/:id',
           views: {
             header: {
               templateUrl: 'static/views/header.html',
@@ -203,6 +203,7 @@ angular.module('Portal', ['Portal.services', 'Portal.controllers', 'Portal.filte
               templateUrl: 'static/views/report.html',
               controller: function ($scope, $stateParams) {
                 $scope.sha256 = $stateParams.sha256;
+                $scope.sid = $stateParams.id;
               }
             }
           }

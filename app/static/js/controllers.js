@@ -295,14 +295,12 @@ angular.module('Portal.controllers', ['Portal.services', 'Portal.configuration']
       av_scan: true,
       static_analysis: true,
       dynamic_analysis: {
-        vxstream: {
-          1: true,
-          2: false,
-          3: false,
-          4: false
+        fireeye: {
+          'win10x64m': true
         }
       }
     };
+
     $scope.save = function(){
       GridData('analysis/static').save({files: $scope.files});
       GridData('analysis/av').save({files: $scope.files}, function(resp){
@@ -315,15 +313,6 @@ angular.module('Portal.controllers', ['Portal.services', 'Portal.configuration']
         notifications.showError(error.data);
       });
 
-      var vxAnalysisAvailable = $scope.sampleActions.dynamic_analysis.vxstream;
-      var vxEnvironmentIds = [];
-      for(var key in vxAnalysisAvailable){
-        if(vxAnalysisAvailable.hasOwnProperty(key)){
-          if(vxAnalysisAvailable[key]){
-            vxEnvironmentIds.push(parseInt(key, 10));
-          }
-        }
-      }
       var feAnalysisAvailable = $scope.sampleActions.dynamic_analysis.fireeye;
       var feEnvs = [];
       for (var k in feAnalysisAvailable){
@@ -334,52 +323,46 @@ angular.module('Portal.controllers', ['Portal.services', 'Portal.configuration']
       var dynAnalysis = {
         files: $scope.files,
         dyn_analysis: {
-          vxstream: vxEnvironmentIds,
           fireeye: feEnvs
         }
       };
 
-      GridData('analysis/vxstream').save(dynAnalysis, function(resp){
-        for(var i in resp.statuses){
-          var st = resp.statuses[i];
-          if(st.hasOwnProperty('error')){
-            notifications.showError(st.error);
-          }else if(st.hasOwnProperty('sha256')){
-            notifications.showSuccess(
-              st.sha256 + ' has been submitted for dynamic analysis');
+      GridData('analysis/fireeye').save(dynAnalysis,
+        function(resp) {
+          for(var i in resp.statuses) {
+            var st = resp.statuses[i];
+            if(st.hasOwnProperty('error')) {
+              notifications.showError(st.error);
+            } else if (st.hasOwnProperty('sha256')) {
+              notifications.showSuccess(st.sha256 + ' has been submitted for dynamic analysis');
+            }
           }
+        },
+        function(err) {
+          notifications.showError(err.data);
         }
-      }, function(error){
-        notifications.showError(error.data);
-      });
-      GridData('analysis/fireeye').save(dynAnalysis, function(resp){
-        notifications.showSuccess(resp.message);
-      }, function(err){
-        notifications.showError(error.data);
-      });
+      );
     };
 
     $scope.$on('files-uploaded', function(event, files){
       $scope.files = $scope.files.concat(files);
       $scope.canSave = true;
     });
+
     $scope.$on('upload-error', function(event, error){
       $scope.msg = error;
     });
+
     $scope.engines = GridData('analysis/av').get({id: 'engines'});
-    GridData('analysis/vxstream/environments').get().$promise.then(
+
+    GridData('analysis/fireeye/environments').get(
       function(resp){
-        $scope.envs = resp.environments;
+        $scope.feenvs = resp.environments;
       },
       function(err){
         notifications.showError(err.data);
       }
     );
-    GridData('analysis/fireeye/environments').get(function(resp){
-      $scope.feenvs = resp.environments;
-    }, function(err){
-      notifications.showError(err.data);
-    });
 
   }])
   .controller('URLsUploadController', ['$scope', '$timeout', '$log', '$location', 'GridData', 'notifications', function($scope, $timeout, $log, $location, GridData, notifications){
@@ -390,33 +373,31 @@ angular.module('Portal.controllers', ['Portal.services', 'Portal.configuration']
       av_scan: true,
       static_analysis: true,
       dynamic_analysis: {
-        vxstream: {
-          1: true,
-          2: false,
-          3: false,
-          4: false
+        fireeye: {
+          'win10x64m': true
         }
       }
     };
 
-    $scope.save = function(){
-      var vxAnalysisAvailable = $scope.sampleActions.dynamic_analysis.vxstream;
-      var vxEnvironmentIds = [];
-      for(var key in vxAnalysisAvailable){
-        if(vxAnalysisAvailable.hasOwnProperty(key)){
-          if(vxAnalysisAvailable[key]){
-            vxEnvironmentIds.push(parseInt(key, 10));
-          }
+    $scope.save = function() {
+      var feAnalysisAvailable = $scope.sampleActions.dynamic_analysis.fireeye;
+      var feEnvs = [];
+      for (var k in feAnalysisAvailable){
+        if(feAnalysisAvailable[k]){
+          feEnvs.push(k);
         }
       }
+
       $scope.urls_ = $scope.urls.split('\n');
+
       var dynAnalysis = {
         urls: $scope.urls_,
-        dyn_analysis: {vxstream: vxEnvironmentIds}
+        dyn_analysis: {
+          fireeye: feEnvs
+        }
       };
-      //console.log(dynAnalysis);
 
-      GridData('analysis/vxstream-url').save(dynAnalysis, function(resp){
+      GridData('analysis/fireeye-url').save(dynAnalysis, function(resp) {
         for(var i in resp.statuses){
           var st = resp.statuses[i];
           if(st.hasOwnProperty('error')){
@@ -428,14 +409,14 @@ angular.module('Portal.controllers', ['Portal.services', 'Portal.configuration']
         }
       }, function(error){
         notifications.showError(error.data);
-      })
+      });
     };
 
-    GridData('analysis/vxstream/environments').get().$promise.then(
-      function(resp){
-        $scope.envs = resp.environments;
+    GridData('analysis/fireeye/environments').get(
+      function(resp) {
+        $scope.feenvs = resp.environments;
       },
-      function(err){
+      function(err) {
         notifications.showError(err.data);
       }
     );

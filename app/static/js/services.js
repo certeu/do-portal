@@ -195,28 +195,25 @@ angular.module('Portal.services', ['ngCookies', 'Portal.configuration'])
         });
       };
     }])
-    .factory('VxStream', ['$resource', 'apiConfig', function ($resource, apiConfig) {
-      return $resource(apiConfig.urlPrefix + '/analysis/vxstream/:sha256/:envId', {}, {
+    .factory('FireEye', ['$resource', 'apiConfig', function ($resource, apiConfig) {
+      return $resource(apiConfig.urlPrefix + '/analysis/fireeye/:sha256/:sid', {}, {
         query: {
           method: 'GET',
           isArray: false,
-          params: {sha256: '@sha256', envId: '@envId'}
+          params: {sha256: '@sha256', sid: '@sid'}
         },
         envs: {
-          url: apiConfig.urlPrefix + '/analysis/vxstream/environments',
+          url: apiConfig.urlPrefix + '/analysis/fireeye/environments',
           method: 'GET',
           cache: true
-
         },
         report: {
-          url: apiConfig.urlPrefix + '/analysis/vxstream/report/:sha256/:envId/:type',
+          url: apiConfig.urlPrefix + '/analysis/fireeye/report/:sha256/:rid',
           method: 'GET',
-          params: {sha256: '@sha256', envId: '@envId', type: '@type'},
+          params: {sha256: '@sha256', rid: '@rid'},
           cache: true
-
         }
       });
-
     }])
     .factory('FileReader', ['$q', '$log', function ($q, $log) {
       var onLoad = function (reader, deferred, scope) {

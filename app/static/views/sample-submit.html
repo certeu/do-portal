@@ -43,19 +43,6 @@
                 <h5>Dynamic analyses</h5>
                 <div class="col-xs-4">
                     <div class="panel panel-default">
-                        <div class="panel-heading">VxStream Hybrid Analysis</div>
-                        <div class="panel-body">
-                            <div ng-repeat="env in envs">
-                                <label class="col-sm-9">{{ env.name }}</label>
-                                <div class="col-sm-2">
-                                    <ui-switch ng-model="sampleActions.dynamic_analysis.vxstream[env.id]"></ui-switch>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-xs-4">
-                    <div class="panel panel-default">
                         <div class="panel-heading">FireEye AX</div>
                         <div class="panel-body">
                             <div ng-repeat="feenv in feenvs">
@@ -63,17 +50,6 @@
                                 <div class="col-sm-2">
                                     <ui-switch ng-model="sampleActions.dynamic_analysis.fireeye[feenv.name]"></ui-switch>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-xs-4">
-                    <div class="panel panel-default panel-disabled">
-                        <div class="panel-heading">Cuckoo Sandbox (coming soon)</div>
-                        <div class="panel-body">
-                            <label class="col-sm-7">Windows 7 32-bit</label>
-                            <div class="col-sm-5">
-                                <ui-switch disabled ng-model="sampleActions.cuckoo"></ui-switch>
                             </div>
                         </div>
                     </div>

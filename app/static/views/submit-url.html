@@ -1,6 +1,6 @@
 <div class="panel panel-primary">
     <div class="panel-heading">
-        <h3 class="panel-title">Submit URL</h3>
+        <h3 class="panel-title">Submit file from URL</h3>
     </div>
 
     <div class="panel-body">
@@ -18,12 +18,12 @@
                 <h5>Dynamic analyses</h5>
                 <div class="col-xs-4">
                     <div class="panel panel-default">
-                        <div class="panel-heading">VxStream Hybrid Analysis</div>
+                        <div class="panel-heading">FireEye AX</div>
                         <div class="panel-body">
-                            <div ng-repeat="env in envs">
-                                <label class="col-sm-9">{{ env.name }}</label>
+                            <div ng-repeat="feenv in feenvs">
+                                <label class="col-sm-9">{{ feenv.name | humanize}}</label>
                                 <div class="col-sm-2">
-                                    <ui-switch ng-model="sampleActions.dynamic_analysis.vxstream[env.id]"></ui-switch>
+                                    <ui-switch ng-model="sampleActions.dynamic_analysis.fireeye[feenv.name]"></ui-switch>
                                 </div>
                             </div>
                         </div>

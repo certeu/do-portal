@@ -32,7 +32,7 @@ Flask-Migrate==2.0.0
 Flask-Principal==0.4.0
 Flask-Script==2.0.6
 Flask-SQLAlchemy==2.1
--e git+https://github.com/certeu/Flask-Tinyclients@7b5ed565167fb3c24f064676c4f395777afc7a1a#egg=Flask_Tinyclients
+-e git+https://github.com/certeu/Flask-Tinyclients@317f52b943bde1170ede89cccb53e37fa5bc6170#egg=Flask_Tinyclients
 Flask-WTF==0.12
 future==0.15.2
 GeoIP==1.3.2
@@ -92,6 +92,6 @@ ssdeep==3.1.1
 traitlets==4.2.2
 vine==1.1.4
 wcwidth==0.1.7
-Werkzeug==0.14.1
+Werkzeug==0.15.3
 whois==0.7
 WTForms==2.1

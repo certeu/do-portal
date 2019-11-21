@@ -3,135 +3,153 @@
     ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
+import hashlib
+import json
 import os
-import gzip
-from io import BytesIO
 
-from lxml import etree
-from flask import request, current_app, g, send_file, session
+from flask import request, current_app, g, session, abort
 from flask_jsonschema import validate
-from app.core import ApiResponse, ApiException
-from app import fireeye, db
+from app.core import ApiResponse
+from app import fireeye, db, ApiException
 from app.api import api
-from app.models import Sample
+from app.models import Sample, Report
 
 
-@api.route('/analysis/fireeye', methods=['GET'])
-def get_fireeye_analyses():
-    """Return a paginated list of FireEye Sandbox JSON reports.
+_STATUS_DONE = "DONE"
+_STATUS_IN_PROGRESS = "IN PROGRESS"
 
-    .. warning::
 
-        Not Implemented
+def _abort_not_found():
+    abort(404)
 
-    **Example request**:
 
-    .. sourcecode:: http
+def _get_token_header(token):
+    headers = {
+        'X-FeApi-Token': token
+    }
+    return headers
 
-        GET /api/1.0/analysis/fireeye?page=1 HTTP/1.1
-        Host: do.cert.europa.eu
-        Accept: application/json
 
-    **Example response**:
+def _get_api_token_from_session():
+    return session.get('FE_API_TOKEN', None)
 
-    .. sourcecode:: http
 
-        HTTP/1.0 200 OK
-        Content-Type: application/json
-        DO-Page-Next: null
-        DO-Page-Prev: null
-        DO-Page-Current: 1
-        DO-Page-Item-Count: 1
+def _get_headers():
+    return _get_token_header(_get_api_token_from_session())
 
-        {
-          "count": 3,
-          "items": [
-            {
-              "created": "2016-03-21T16:52:52",
-              "id": 4,
-              "report": "...",
-              "type": "Dynamic analysis"
-            },
-            {
-              "created": "2016-03-21T16:51:49",
-              "id": 3,
-              "report": "...",
-              "type": "Dynamic analysis"
-            },
-            {
-              "created": "2016-03-20T17:09:03",
-              "id": 2,
-              "report": "...",
-              "type": "Dynamic analysis"
+
+def _get_submission_status(submission_id):
+    try:
+        return fireeye.submission_status(submission_id, headers=_get_headers())
+    except Exception as err:
+        current_app.log.error(err)
+        raise ApiException("Failed to get status from FireEye AX")
+
+
+def _get_submission_result(submission_id):
+    params = {
+        'info_level': 'extended'
+    }
+    try:
+        return fireeye.submission_results(submission_id, headers=_get_headers(), params=params)
+    except Exception as err:
+        current_app.log.error(err)
+        raise ApiException("Failed to get result from FireEye AX")
+
+
+def _get_sample_by_id_and_sha256(sample_id, sample_sha256, only_current_user=False):
+    if only_current_user:
+        sample_query = Sample.query.filter_by(id=sample_id, sha256=sample_sha256, user_id=g.user.id)
+    else:
+        sample_query = Sample.query.filter_by(id=sample_id, sha256=sample_sha256)
+
+    sample = sample_query.one_or_none()
+    if sample is None:
+        _abort_not_found()
+    return sample
+
+
+def _get_all_reports_by_sample_id(sample_id):
+    return Report.query.filter_by(sample_id=sample_id, type_id=3).all()
+
+
+def _get_report_by_id_and_sha256(report_id, sample_sha256, only_current_user=False):
+    report = Report.query.filter_by(id=report_id, type_id=3).one_or_none()
+    if report is None:
+        _abort_not_found()
+
+    _ = _get_sample_by_id_and_sha256(report.sample_id, sample_sha256, only_current_user=only_current_user)
+
+    return report
+
+
+def process_get_fireeye_report(sha256, rid, only_current_user=False):
+    report = _get_report_by_id_and_sha256(rid, sha256, only_current_user=only_current_user)
+
+    serialized_report = report.report
+    if serialized_report is None:
+        _abort_not_found()
+
+    deserialized_report = json.loads(serialized_report)
+
+    env = deserialized_report['env']
+    submission_id = deserialized_report['submission_id']
+
+    result = _get_submission_result(submission_id)
+
+    report = {
+        'env': env,
+        'result': result
+    }
+
+    results = [report]
+
+    return ApiResponse({'results': results})
+
+
+@api.route('/analysis/fireeye/report/<string:sha256>/<int:rid>', methods=['GET'])
+def get_fireeye_report(sha256, rid):
+    return process_get_fireeye_report(sha256, rid, only_current_user=False)
+
+
+def process_get_fireeye_analysis(sha256, sid, only_current_user=False):
+    sample = _get_sample_by_id_and_sha256(sid, sha256, only_current_user=only_current_user)
+    reports = _get_all_reports_by_sample_id(sample.id)
+
+    results = []
+
+    for report in reports:
+        serialized_report = report.report
+        if serialized_report is not None:
+            deserialized_report = json.loads(serialized_report)
+
+            env = deserialized_report['env']
+            submission_id = deserialized_report['submission_id']
+            list_id = deserialized_report.get('list_id')
+            status = _STATUS_IN_PROGRESS
+
+            if list_id is not None:
+                submission_status = _get_submission_status(list_id)
+                if submission_status['status'] == 'Submission Done':
+                    status = _STATUS_DONE
+            else:
+                submission_status = _get_submission_status(submission_id)
+                if submission_status['submissionStatus'] == 'Done':
+                    status = _STATUS_DONE
+
+            status = {
+                'env': env,
+                'report_id': report.id,
+                'submission_status': status
             }
-          ],
-          "next": null,
-          "page": 1,
-          "prev": null
-        }
 
-    :reqheader Accept: Content type(s) accepted by the client
-    :resheader Content-Type: this depends on `Accept` header or request
-    :resheader DO-Page-Next: Next page URL
-    :resheader DO-Page-Prev: Previous page URL
-    :resheader DO-Page-Curent: Current page number
-    :resheader DO-Page-Item-Count: Total number of items
+            results.append(status)
 
-    :>json array items: FireEye reports
-    :>jsonarr integer id: AV scan unique ID
-    :>jsonarr string name: File name
-    :>jsonarr string sha256: SHA256 message-digest of file
-    :>json integer page: Current page number
-    :>json integer prev: Previous page number
-    :>json integer next: Next page number
-    :>json integer count: Total number of items
-
-    :status 200: Reports found
-    :status 404: Resource not found
-    """
-    raise ApiException({}, 501)
-    # return Report.query.filter_by(type_id=5)
+    return ApiResponse({'statuses': results})
 
 
-@api.route('/analysis/fireeye/report', defaults={'type': 'html'})
-@api.route('/analysis/fireeye/report/<string:sha256>/<envid>/<type>',
-           methods=['GET'])
-def get_fireeye_report(sha256, envid, type):
-    raise ApiException({}, 501)
-    # XML, HTML, BIN and PCAP are GZipped
-    Sample.query.filter_by(sha256=sha256).first_or_404()
-    headers = {
-        'Accept': 'text/html',
-        'User-Agent': 'FireEye Sandbox API Client'}
-    params = {'type': type, 'environmentId': envid}
-    vx = fireeye.api.get('result/{}'.format(sha256),
-                         params=params, headers=headers)
-    if type in ['xml', 'html', 'bin', 'pcap']:
-        return gzip.decompress(vx)
-    return vx
-
-
-@api.route('/analysis/fireeye/download', defaults={'ftype': 'bin', 'eid': 1})
-@api.route('/analysis/fireeye/download/<string:sha256>/<eid>/<ftype>',
-           methods=['GET'])
-def get_fireeye_download(sha256, eid, ftype):
-    raise ApiException({}, 501)
-    Sample.query.filter_by(sha256=sha256).first_or_404()
-    headers = {
-        'Accept': 'text/html',
-        'User-Agent': 'FireEye Sandbox API Client'}
-    params = {'type': ftype, 'environmentId': eid}
-    vx = fireeye.api.get('result/{}'.format(sha256),
-                         params=params, headers=headers)
-    if ftype in ['xml', 'html', 'bin', 'pcap']:
-        ftype += '.gz'
-    return send_file(BytesIO(vx),
-                     attachment_filename='{}.{}'.format(sha256, ftype),
-                     as_attachment=True)
-
-
-@api.route('/analysis/fireeye/<string:sha256>/<envid>', methods=['GET'])
-def get_fireeye_analysis(sha256, envid):
+@api.route('/analysis/fireeye/<string:sha256>/<int:sid>', methods=['GET'])
+def get_fireeye_analysis(sha256, sid):
     """Return FireEye Sandbox dynamic analysis for sample identified by
         :attr:`~app.models.Sample.sha256`, running in :param: envid.
 
@@ -196,8 +214,7 @@ def get_fireeye_analysis(sha256, envid):
         }
 
     :param sha256: SHA256 of file
-    :param envid: Environment ID. For the list of available environments see:
-        :http:get:`/api/1.0/analysis/fireeye/environments`.
+    :param sid: Sample identifier.
 
     :reqheader Accept: Content type(s) accepted by the client
     :resheader Content-Type: this depends on `Accept` header or request
@@ -229,31 +246,47 @@ def get_fireeye_analysis(sha256, envid):
       determine if action was successful.
     :status 404: Resource not found
     """
-    raise ApiException({}, 501)
-    sample = Sample.query.filter_by(sha256=sha256).first_or_404()
-    state = fireeye.api.get(
-        'state/{}'.format(sha256),
-        params={'environmentId': envid})
-    status = state['response_code'] == 0
-    if status and state['response']['state'] == 0:
-        #: FIXME: return the fireeye.api.get('result/sha256')
-        #: and create a summary from that
-        #: offer HTML & JSON downloads
-        params = {'type': 'json', 'environmentId': envid}
-        if sample.filename.startswith('http'):
-            vx = {
-                'response': {
-                    'analysis_start_time': '1',
-                    'environmentId': envid
-                },
-                'response_code': 0
-            }
-        else:
-            vx = fireeye.api.get('summary/{}'.format(sha256), params=params)
-        return ApiResponse(vx)
-    else:
-        state['response']['environmentId'] = envid
-        return ApiResponse(state)
+    return process_get_fireeye_analysis(sha256, sid, only_current_user=False)
+
+
+def process_add_fireeye_analysis():
+    token = _get_api_token_from_session()
+
+    statuses = []
+
+    request_data = request.json
+
+    for f in request_data['files']:
+        sample_id = f['id']
+        sample_sha256 = f['sha256']
+
+        sample = _get_sample_by_id_and_sha256(sample_id, sample_sha256, only_current_user=True)
+
+        submit_samples = [sample]
+
+        children = sample.children
+        if children:
+            submit_samples.extend(children)
+
+        submitted_sha256s = set()
+        for env in request_data['dyn_analysis']['fireeye']:
+            for submit_sample in submit_samples:
+                submission = _submit_to_fireeye(submit_sample, env, token)
+
+                submit_sample.reports.append(_create_report(submission))
+
+                submitted_sha256s.add(submit_sample.sha256)
+
+                db.session.add(submit_sample)
+            db.session.commit()
+
+        for submitted_sha256 in submitted_sha256s:
+            statuses.append({'sha256': submitted_sha256})
+
+    return ApiResponse({
+        'statuses': statuses,
+        'message': 'Your files have been submitted for dynamic analysis'
+    }, 202)
 
 
 @api.route('/analysis/fireeye', methods=['POST', 'PUT'])
@@ -323,19 +356,43 @@ def add_fireeye_analysis():
     :status 202: Files have been accepted for dynamic analysis
     :status 400: Bad request
     """
-    fe_token = session.get('FE_API_TOKEN', None)
+    return process_add_fireeye_analysis()
+
+
+def _create_url_sample(url):
+    sha256 = hashlib.sha256(url.encode('utf-8')).hexdigest()
+    return Sample(filename=url, sha256=sha256, user_id=g.user.id, md5='N/A', sha1='N/A', sha512='N/A', ctph='N/A')
+
+
+def process_add_fireeye_url_analysis():
+    token = _get_api_token_from_session()
+
     statuses = []
 
-    for env in request.json['dyn_analysis']['fireeye']:
-        for f in request.json['files']:
-            resp = _submit_to_fireeye(f['sha256'],
-                                      env,
-                                      fe_token,
-                                      with_children=True)
-            statuses.append(resp[0]['ID'])
+    request_data = request.json
+    for url in request_data['urls']:
+        if not url:
+            raise ApiException("No URL to submit")
+
+        if not url.startswith('http'):
+            url = 'http://' + url
+
+        sample = _create_url_sample(url)
+
+        for env in request_data['dyn_analysis']['fireeye']:
+            submission = _submit_url_to_fireeye(url, env, token)
+
+            report = _create_report(submission)
+            sample.reports.append(report)
+
+        statuses.append({'sha256': sample.sha256})
+
+        db.session.add(sample)
+        db.session.commit()
+
     return ApiResponse({
         'statuses': statuses,
-        'message': 'Your files have been submitted for dynamic analysis'
+        'message': 'Your URLs have been submitted for dynamic analysis'
     }, 202)
 
 
@@ -396,35 +453,36 @@ def add_fireeye_url_analysis():
     :status 202: The URLs have been accepted for scanning
     :status 400: Bad request
     """
-    raise ApiException({}, 501)
-    statuses = []
-    samples = {}
-    for env in request.json['dyn_analysis']['fireeye']:
-        for url in request.json['urls']:
-            sdata = {
-                'environmentId': env,
-                'analyzeurl': url
-            }
-            headers = {
-                'User-Agent': 'FireEye Sandbox API Client',
-                'Accept': 'application/json'
-            }
-            resp = fireeye.submiturl(sdata, headers=headers)
+    return process_add_fireeye_url_analysis()
 
-            samples[resp['response']['sha256']] = url
-            statuses.append(resp['response'])
-            if resp['response_code'] != 0:
-                current_app.log.debug(resp)
 
-    for sha256, url in samples.items():
-        surl = Sample(filename=url, sha256=sha256, user_id=g.user.id,
-                      md5='N/A', sha1='N/A', sha512='N/A', ctph='N/A')
-        db.session.add(surl)
-    db.session.commit()
-    return {
-        'statuses': statuses,
-        'message': 'Your URLs have been submitted for dynamic analysis'
-    }, 202
+def _get_sensor_profiles(config):
+    entity = config["entity"]
+    sensors = entity["sensors"]
+
+    # At the moment there is only one sensor.
+    sensor = sensors[0]
+
+    profiles = sensor["profiles"]
+
+    results = []
+    for profile in profiles:
+        results.append({"id": profile["id"], "name": profile["name"]})
+
+    return results
+
+
+def process_get_fireeye_environments():
+    headers = _get_headers()
+
+    try:
+        config = fireeye.config(headers=headers)
+        profiles = _get_sensor_profiles(config)
+    except Exception as err:
+        current_app.log.error(err)
+        raise ApiException("Failed to get environments from FireEye AX")
+
+    return ApiResponse({'environments': sorted(profiles, key=lambda i: i['id'])})
 
 
 @api.route('/analysis/fireeye/environments')
@@ -476,61 +534,125 @@ def get_fireeye_environments():
 
     :status 200:
     """
-    headers = {
-        'X-FeApi-Token': session.get('FE_API_TOKEN', None)
+    return process_get_fireeye_environments()
+
+
+def _open_uploaded_sample(filename):
+    cfg = current_app.config
+    samples_dir = cfg['APP_UPLOADS_SAMPLES']
+    return open(os.path.join(samples_dir, filename), 'rb')
+
+
+def _create_url_submission_data(list_id, submission_id, env):
+    return {
+        "list_id": list_id,
+        "submission_id": submission_id,
+        "env": env
     }
-    req = fireeye.api.get('/config', headers=headers)
-    e = etree.fromstring(req)
-    envs = []
-    for profile in e.xpath('//sensors/sensor/profiles/profile'):
-        envs.append({'id': profile.get('id'), 'name': profile.get('name')})
-
-    return ApiResponse({'environments': sorted(envs, key=lambda i: i['id'])})
 
 
-def _submit_to_fireeye(sha256, env, token, with_children=False):
-    """Submit ``sha256`` to FireEye Sandbox for analysis.
+def _create_submission_data(submission_id, env):
+    return {
+        "submission_id": submission_id,
+        "env": env
+    }
 
-    :param sha256:
+
+def _create_report(submission_data):
+    serialized_report_content = json.dumps(submission_data)
+    return Report(type_id=3, report=serialized_report_content)
+
+
+def _get_submission_id_from_submissions(submissions):
+    return submissions[0]['ID']
+
+
+def _submit_to_fireeye(sample, env, token):
+    """Submit ``sample`` to FireEye Sandbox for analysis.
+
+    :param sample:
     :param env:
     :param token: FireEye Auth Token
-    :param with_children:
     :return:
     """
-    cfg = current_app.config
-    fileobj = open(os.path.join(cfg['APP_UPLOADS_SAMPLES'], sha256), 'rb')
-    files = {'file': fileobj}
-    if with_children:
-        s = Sample.query. \
-            filter_by(sha256=sha256, user_id=g.user.id). \
-            first_or_404()
-        try:
-            for child in s.children:
-                cf = open(
-                    os.path.join(cfg['APP_UPLOADS_SAMPLES'], child.sha256),
-                    'rb')
-                files[child.sha256] = cf
-        except IOError as ioerr:
-            current_app.log.error(ioerr)
-        except AttributeError as ae:
-            current_app.log.info(ae)
+    files = []
+    try:
+        filename = sample.filename
+        file_obj = _open_uploaded_sample(sample.sha256)
 
-    data = {
-        # ID fo the application to se used for analysis
-        # get the list from '/config'
+        files.append(('filename', (filename, file_obj)))
+    except IOError as io_err:
+        current_app.log.error(io_err)
+        return None
+    except AttributeError as ae:
+        current_app.log.error(ae)
+        return None
+
+    options = {
+        "application": -1,
+        "timeout": 500,
+        "priority": 0,
+        "profiles": [env],
+        "analysistype": 2,
+        "force": True,
+        "prefetch": 1,
+    }
+
+    try:
+        submissions = fireeye.submissions(options, files, headers=_get_token_header(token))
+        submission_id = _get_submission_id_from_submissions(submissions)
+        return _create_submission_data(submission_id, env)
+    except Exception as err:
+        current_app.log.error(err)
+        raise ApiException("Failed to submit file to FireEye AX")
+    finally:
+        for (_, value) in files:
+            _, file_obj = value
+            file_obj.close()
+
+
+def _get_list_id_from_url_submissions(url_submissions):
+    entity = url_submissions['entity']
+    response = entity['response']
+    return response[0]['id']
+
+
+def _get_submission_id_from_url_submissions_status(url_submissions_status):
+    response = url_submissions_status['response']
+    return response[0]['id']
+
+
+def _submit_url_to_fireeye(url, env, token):
+    """Submit ``sample`` to FireEye Sandbox for analysis.
+
+    :param url:
+    :param env:
+    :param token: FireEye Auth Token
+    :return:
+    """
+    urls = [url]
+
+    options = {
+        "timeout": 500,
+        "priority": 0,
+        "profiles": [env],
         "application": 0,
-        "force": 0,  # 0 - don't analyze duplicates, 1 - force analysis
-        "priority": 0,  # 0 - normal, 1 - urgent
-        "analysistype": 1,  # 1 - Live, 2 - Sandbox
-        "prefetch": 0,  # for analysistype == 2 prefetch must be 1
-        "profiles": [env],  # VM to be used for analysis
-        "timeout": "200"  # analysis timeout (seconds)
+        "force": True,
+        "analysistype": 2,
+        "prefetch": 1,
+        "urls": urls
     }
-    headers = {
-        'Accept': 'application/json',
-        'X-FeApi-Token': token
-    }
-    return fireeye.submit(
-        data=data, files=files,
-        verify=False,
-        headers=headers)
+
+    try:
+        submissions = fireeye.submissions_url(options, headers=_get_token_header(token))
+    except Exception as err:
+        current_app.log.error(err)
+        raise ApiException("Failed to submit URL to FireEye AX")
+
+    list_id = _get_list_id_from_url_submissions(submissions)
+
+    submission_status = _get_submission_status(list_id)
+
+    submission_id = _get_submission_id_from_url_submissions_status(submission_status)
+
+    return _create_url_submission_data(list_id, submission_id, env)
