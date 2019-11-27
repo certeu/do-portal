@@ -1,6 +1,9 @@
 import os
+
 from flask import current_app, send_file
 from flask_login import current_user
+
+from app.api.deliverable_files import create_get_files_query
 from app.core import ApiPagedResponse
 from app.models import DeliverableFile, Permission
 from . import cp
@@ -67,11 +70,12 @@ def get_files():
     :status 200: File found
     :status 404: Resource not found
     """
-    if current_user.can(Permission.SLAACTIONS):
-        deliverable_query = DeliverableFile.query
-    else:
-        deliverable_query = DeliverableFile.query.filter_by(is_sla=0)
-    return ApiPagedResponse(deliverable_query)
+    deliverable_files = create_get_files_query()
+
+    if not current_user.can(Permission.SLAACTIONS):
+        deliverable_files = deliverable_files.filter(DeliverableFile.is_sla == 0)
+
+    return ApiPagedResponse(deliverable_files)
 
 
 @cp.route('/files/<int:file_id>', methods=['GET'])

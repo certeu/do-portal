@@ -5,6 +5,14 @@
             Upload
         </a>
     </h3>
+    <div class="show-grid">
+      <div class="input-group">
+          <input type="text" ng-model="search" placeholder="Filter by name or type" ng-change="filterPage()" class="form-control" aria-describedby="strict-addon">
+          <span class="input-group-addon" id="strict-addon">
+              <input type="hidden" ng-model="strict"> Filter
+          </span>
+      </div>
+    </div>
     <table class="table table-striped">
         <thead>
             <tr>

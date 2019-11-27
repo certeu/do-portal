@@ -218,6 +218,7 @@ angular.module('Portal.controllers', ['Portal.services', 'Portal.configuration']
   }])
   .controller('DeliverableFilesController', ['$scope', '$log', '$uibModal', 'GridData', 'notifications', 'apiConfig', function($scope, $log, $uibModal, GridData, notifications, apiConfig){
     $scope.webServiceUrl = apiConfig.urlPrefix;
+    $scope.query = undefined;
     $scope.uploadFiles = function(size){
       var modalInstance = $uibModal.open({
         templateUrl: '/static/views/modal-files-upload.html',
@@ -232,10 +233,12 @@ angular.module('Portal.controllers', ['Portal.services', 'Portal.configuration']
         $scope.loadPage($scope.currentPage);
       });
     };
+
     $scope.pageChanged = function(){
       //$log.log('Page changed to: ' + $scope.currentPage);
       $scope.loadPage($scope.currentPage);
     };
+
     $scope.deleteFile = function(fobj){
       GridData('files').delete({id: fobj.id}, function(resp){
         $scope.loadPage($scope.currentPage);
@@ -243,11 +246,28 @@ angular.module('Portal.controllers', ['Portal.services', 'Portal.configuration']
 
       });
     };
+
+    $scope.filterPage = function() {
+      var query = $scope.search.trim();
+      if (query.length >= 3) {
+        $scope.query = query;
+      } else {
+        $scope.query = undefined;
+      }
+      $scope.loadPage();
+    };
+
     $scope.loadPage = function(no){
       if(no === undefined){
         no = 1;
       }
-      GridData('files').query({page: no}, function(resp){
+      var params = {
+        page: no
+      };
+      if($scope.query !== undefined){
+        params.query = $scope.query;
+      }
+      GridData('files').query(params, function(resp){
         $scope.files = resp.items;
         $scope.totalItems = resp.count;
         $scope.currentPage = resp.page;
@@ -255,8 +275,8 @@ angular.module('Portal.controllers', ['Portal.services', 'Portal.configuration']
         notifications.showError(err);
       });
     };
-    $scope.loadPage();
 
+    $scope.loadPage();
   }])
   .controller('SamplesController', ['$scope', '$uibModal', 'GridData', 'notifications', 'apiConfig', function($scope, $uibModal, GridData, notifications, apiConfig){
     $scope.webServiceUrl = apiConfig.urlPrefix;

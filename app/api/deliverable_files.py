@@ -3,9 +3,26 @@ from flask import request, send_file, current_app
 from app.core import ApiResponse, ApiPagedResponse
 from . import api
 from ..import db
-from ..models import DeliverableFile, Permission
+from ..models import Deliverable, DeliverableFile, Permission
 from .decorators import permission_required
 from flask_jsonschema import validate
+from sqlalchemy import or_
+
+
+def create_get_files_query():
+    query = request.args.get('query', None, type=str)
+
+    if query is None:
+        deliverable_files = DeliverableFile.query
+    else:
+        search = "%{}%".format(query)
+
+        filters = [DeliverableFile.name.ilike(search), Deliverable.name.ilike(search)]
+
+        deliverable_files = DeliverableFile.query.join(DeliverableFile.deliverable_)
+        deliverable_files = deliverable_files.filter(or_(*filters))
+
+    return deliverable_files
 
 
 @api.route('/files', methods=['GET'])
@@ -76,7 +93,8 @@ def get_files():
     :status 200: File found
     :status 404: Resource not found
     """
-    return ApiPagedResponse(DeliverableFile.query)
+    deliverable_files = create_get_files_query()
+    return ApiPagedResponse(deliverable_files)
 
 
 @api.route('/files/<int:file_id>', methods=['GET'])
