@@ -46,7 +46,7 @@ Jinja2==2.10.1
 jsonschema==2.5.1
 kombu==4.2.2-post1
 ldap3==1.4.0
-lxml==3.6.1
+lxml==4.6.2
 -e git+https://gitlab.com/mailman/mailmanclient@2400e9959940094f0304587b80baab75fd48333f#egg=mailmanclient
 Mako==1.0.4
 MarkupSafe==1.1.0
